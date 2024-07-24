@@ -17,8 +17,6 @@ public class CommonUtils {
 
         if (obj instanceof Map) { return ((Map<?, ?>) obj).isEmpty(); }
 
-        if (obj instanceof Map) { return ((Map<?, ?>)obj).isEmpty(); }
-
         if (obj instanceof List) { return ((List<?>)obj).isEmpty(); }
 
         if (obj instanceof Object[]) { return (((Object[])obj).length == 0); }

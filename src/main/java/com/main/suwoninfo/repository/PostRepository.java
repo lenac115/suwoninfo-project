@@ -30,26 +30,9 @@ public class PostRepository {
                 .getResultList().stream().findAny();
     }
 
-    public Optional<Post> findByEmail(String email) {
-        return entityManager.createQuery("select u.post from User u where u.email = :email", Post.class)
-                .setParameter("email", email)
-                .getResultList().stream().findAny();
-    }
-
-    public List<Post> findFreeByTitle(String keyword, int limit, int offset) {
+    public List<Post> findByTitle(String keyword, int limit, int offset, PostType postType) {
         return queryFactory.selectFrom(post)
-                .where(post.postType.eq(PostType.FREE)
-                        .and(post.title.like("%"+ keyword + "%")
-                                .or(post.content.like("%"+ keyword + "%"))))
-                .offset(offset)
-                .limit(limit)
-                .orderBy(post.id.desc())
-                .fetch();
-    }
-
-    public List<Post> findTradeByTitle(String keyword, int limit, int offset) {
-        return queryFactory.selectFrom(post)
-                .where(post.postType.eq(PostType.TRADE)
+                .where(post.postType.eq(postType)
                         .and(post.title.like("%"+ keyword + "%")
                                 .or(post.content.like("%" + keyword + "%"))))
                 .offset(offset)
@@ -58,18 +41,9 @@ public class PostRepository {
                 .fetch();
     }
 
-    public List<Post> findFreeByPaging(int limit, int offset) {
+    public List<Post> findByPaging(int limit, int offset, PostType postType) {
         return queryFactory.selectFrom(post)
-                .where(post.postType.eq(PostType.FREE))
-                .offset(offset)
-                .limit(limit)
-                .orderBy(post.id.desc())
-                .fetch();
-    }
-
-    public List<Post> findTradeByPaging(int limit, int offset) {
-        return queryFactory.selectFrom(post)
-                .where(post.postType.eq(PostType.TRADE))
+                .where(post.postType.eq(postType))
                 .offset(offset)
                 .limit(limit)
                 .orderBy(post.id.desc())

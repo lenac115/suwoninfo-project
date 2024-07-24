@@ -44,11 +44,10 @@ public class CommentService {
         comment.setContent(detail);
 
         commentRepository.save(comment);
-        CommentDto commentDto = CommentDto.builder()
+        return CommentDto.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .build();
-        return commentDto;
     }
 
     @Transactional
@@ -68,11 +67,10 @@ public class CommentService {
         comment.addReplyComment(parent);
 
         commentRepository.save(comment);
-        CommentDto commentDto = CommentDto.builder()
+        return CommentDto.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .build();
-        return commentDto;
     }
 
     public List<CommentWithParent> findByPaging(Long postId) {
@@ -80,7 +78,7 @@ public class CommentService {
         List<CommentWithParent> result = new ArrayList<>();
         Map<Long, CommentWithParent> map = new HashMap<>();
 
-        comment.stream().forEach(c -> {
+        comment.forEach(c -> {
             CommentWithParent commentWithParent;
             if(c.isActivated()) {
                 commentWithParent = CommentWithParent.builder()

@@ -29,9 +29,8 @@ public class TodoService {
         List<Todo> todoList = todoRepository.findByUser(findUser.getEmail());
         if (todoList.isEmpty())
             throw new CustomException(TodoErrorCode.NOT_EXIST_TODO);
-        List<TodoDto> todoDtoList = toDto(todoList);
 
-        return todoDtoList;
+        return toDto(todoList);
     }
 
     @Transactional
@@ -41,15 +40,14 @@ public class TodoService {
         if(todoList.isEmpty())
             todoRepository.createTodo(todo);
         else {
-            for (int i =0; i<todoList.size(); i++){
-                Todo getedTodo = todoList.get(i);
-                int getedStartTime = getedTodo.getStartHour()*60 + getedTodo.getStartMinute();
-                int getedEndTime = getedTodo.getEndHour()*60 + getedTodo.getEndMinute();
-                int newStartTime = todo.getStartHour()*60 + todo.getStartMinute();
-                int newEndTime = todo.getEndHour()*60 + todo.getEndMinute();
+            for (Todo getedTodo : todoList) {
+                int getedStartTime = getedTodo.getStartHour() * 60 + getedTodo.getStartMinute();
+                int getedEndTime = getedTodo.getEndHour() * 60 + getedTodo.getEndMinute();
+                int newStartTime = todo.getStartHour() * 60 + todo.getStartMinute();
+                int newEndTime = todo.getEndHour() * 60 + todo.getEndMinute();
                 if ((newStartTime >= getedStartTime && newStartTime < getedEndTime) ||
                         (newStartTime < getedStartTime && newEndTime > getedStartTime)) {
-                    if(getedTodo.getDayList() == todo.getDayList())
+                    if (getedTodo.getDayList() == todo.getDayList())
                         throw new CustomException(TodoErrorCode.DUPLICATED_TODO);
                     else
                         todoRepository.createTodo(todo);
@@ -79,17 +77,17 @@ public class TodoService {
     private List<TodoDto> toDto(List<Todo> byUser) {
         List<TodoDto> todoDtoList = new ArrayList<>();
 
-        for (int i = 0; i < byUser.size(); i++) {
+        for (Todo todo : byUser) {
             todoDtoList.add(TodoDto.builder()
-                            .id(byUser.get(i).getId())
-                            .className(byUser.get(i).getClassName())
-                            .professor(byUser.get(i).getProfessor())
-                            .classroom(byUser.get(i).getClassroom())
-                            .dayList(byUser.get(i).getDayList())
-                            .startMinute(byUser.get(i).getStartMinute())
-                            .startHour(byUser.get(i).getStartHour())
-                            .endHour(byUser.get(i).getEndHour())
-                            .endMinute(byUser.get(i).getEndMinute())
+                    .id(todo.getId())
+                    .className(todo.getClassName())
+                    .professor(todo.getProfessor())
+                    .classroom(todo.getClassroom())
+                    .dayList(todo.getDayList())
+                    .startMinute(todo.getStartMinute())
+                    .startHour(todo.getStartHour())
+                    .endHour(todo.getEndHour())
+                    .endMinute(todo.getEndMinute())
                     .build());
         }
 

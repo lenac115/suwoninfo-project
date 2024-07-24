@@ -31,7 +31,7 @@ public class PhotoRepository {
     }
 
     public List<Photo> findByPost(Long postId) {
-        return entityManager.createQuery("select p.photo from Post p where p.id := id", Photo.class)
+        return entityManager.createQuery("select p.photo from Post p where p.id = :id", Photo.class)
                 .setParameter("id", postId)
                 .getResultList();
     }

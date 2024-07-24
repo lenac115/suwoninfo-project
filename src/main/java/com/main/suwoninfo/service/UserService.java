@@ -74,7 +74,7 @@ public class UserService {
 
     private User dtoToUser(UserDto userDto) {
 
-        User user = User.builder()
+        return User.builder()
                 .email(userDto.getEmail())
                 .name(userDto.getName())
                 .nickname(userDto.getNickname())
@@ -83,8 +83,6 @@ public class UserService {
                 .userAuthorities(new ArrayList<>())
                 .activated(true)
                 .build();
-
-        return user;
     }
 
     //전체 유저 리스트
@@ -112,15 +110,13 @@ public class UserService {
         if(nickName != null) findUser.setNickname(nickName);
         if(studentNum != null) findUser.setStudentNumber(studentNum);
 
-        UserDto userDto = UserDto.builder()
+        return UserDto.builder()
                 .studentNumber(findUser.getStudentNumber())
                 .name(findUser.getName())
                 .nickname(findUser.getNickname())
                 .email(findUser.getEmail())
                 .password(findUser.getPassword())
                 .build();
-
-        return userDto;
     }
 
     //로그인 메소드
@@ -154,15 +150,13 @@ public class UserService {
         User user = userRepository.findByEmail(email).orElseThrow(() ->  new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         List<String> userAuthority = userRepository.findAuthById(email);
 
-        UserWithAuthorityForm userWithAuthorityForm = UserWithAuthorityForm.builder()
+        return UserWithAuthorityForm.builder()
                 .name(user.getName())
                 .studentNumber(user.getStudentNumber().toString())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .authority(userAuthority)
                 .build();
-
-        return userWithAuthorityForm;
     }
 
     public TokenResponse reissue(String requestAccessToken, String requestRefreshToken) {

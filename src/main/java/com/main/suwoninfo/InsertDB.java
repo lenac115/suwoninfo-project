@@ -1,6 +1,7 @@
 package com.main.suwoninfo;
 
 import com.main.suwoninfo.domain.PostType;
+import com.main.suwoninfo.domain.TradeStatus;
 import com.main.suwoninfo.dto.PostDto;
 import com.main.suwoninfo.dto.UserDto;
 import com.main.suwoninfo.service.CommentService;
@@ -58,7 +59,7 @@ public class InsertDB {
             for(int j = 0; j<11; j++) {
                 PostDto postDto = PostDto.builder()
                         .content("Free : " + Integer.toString(j))
-                        .title("집에가고싶다")
+                        .title("자유게시글")
                         .postType(PostType.FREE)
                         .build();
                 postService.post(1L, postDto);
@@ -67,8 +68,10 @@ public class InsertDB {
             for(int j = 0; j<11; j++) {
                 PostDto postDto = PostDto.builder()
                         .content("Trade : " + Integer.toString(j))
-                        .title("집에가고싶다")
+                        .title("거래게시글")
                         .postType(PostType.TRADE)
+                        .tradeStatus(TradeStatus.READY)
+                        .price("30000")
                         .build();
                 postService.post(1L, postDto);
             }
@@ -76,10 +79,10 @@ public class InsertDB {
 
         public void dbInit3() {
 
-            commentService.notReplyPost("1234@naver.com", 1L, "ㅋㅋㅋㅋ뭐함");
-            commentService.replyPost("1234@naver.com", 1L, 1L, "아 ㅅㅂ");
-            commentService.replyPost("4567@naver.com", 1L, 2L, "아오 ㅅㅂ");
-            commentService.replyPost("4567@naver.com", 1L, 1L, "ㅅㅂ");
+            commentService.notReplyPost("1234@naver.com", 1L, "댓글1");
+            commentService.replyPost("1234@naver.com", 1L, 1L, "답글1");
+            commentService.replyPost("4567@naver.com", 1L, 2L, "답글2");
+            commentService.replyPost("4567@naver.com", 1L, 1L, "답글3");
         }
     }
 }

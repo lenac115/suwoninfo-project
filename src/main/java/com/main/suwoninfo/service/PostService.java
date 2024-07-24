@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -61,7 +62,7 @@ public class PostService {
     public void delete(Long postId, String email) {
         Post post = findById(postId);
         User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
-        if(post.getUser().getId() != user.getId())
+        if(!Objects.equals(post.getUser().getId(), user.getId()))
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
         postRepository.delete(post);
         for(int i = 0; i<post.getComment().size(); i++){
@@ -90,32 +91,32 @@ public class PostService {
     }
 
     public List<PostWithId> findFreeByPaging(int limit, int offset) {
-        List<Post> postList = postRepository.findFreeByPaging(limit, offset);
+        List<Post> postList = postRepository.findByPaging(limit, offset, PostType.FREE);
         List<PostWithId> postDtoList = new ArrayList<>();
-        for (int i= 0; i < postList.size(); i++){
-            postDtoList.add(PostWithId.builder()
-                    .title(postList.get(i).getTitle())
-                    .content(postList.get(i).getContent())
-                    .nickname(postList.get(i).getUser().getNickname())
-                    .id(postList.get(i).getId())
-                    .build());
-        }
+
+        postList.forEach(post -> postDtoList.add(PostWithId.builder()
+                        .title(post.getTitle())
+                        .content(post.getContent())
+                        .nickname(post.getUser().getNickname())
+                        .id(post.getId())
+                .build()));
+
         return postDtoList;
     }
 
     public List<PostWithIdAndPrice> findTradeByPaging(int limit, int offset) {
-        List<Post> postList = postRepository.findTradeByPaging(limit, offset);
+        List<Post> postList = postRepository.findByPaging(limit, offset, PostType.TRADE);
         List<PostWithIdAndPrice> postDtoList = new ArrayList<>();
-        for (int i= 0; i < postList.size(); i++){
-            postDtoList.add(PostWithIdAndPrice.builder()
-                    .title(postList.get(i).getTitle())
-                    .content(postList.get(i).getContent())
-                    .nickname(postList.get(i).getUser().getNickname())
-                    .id(postList.get(i).getId())
-                    .price(postList.get(i).getPrice())
-                    .tradeStatus(postList.get(i).getTradeStatus())
-                    .build());
-        }
+        postList.forEach(post -> postDtoList.add(
+                PostWithIdAndPrice.builder()
+                        .title(post.getTitle())
+                        .content(post.getContent())
+                        .nickname(post.getUser().getNickname())
+                        .id(post.getId())
+                        .price(post.getPrice())
+                        .tradeStatus(post.getTradeStatus())
+                        .build()
+        ));
         return postDtoList;
     }
 
@@ -131,58 +132,54 @@ public class PostService {
     }
 
     public SearchFreeListForm searchFreePost(String keyword, int limit, int offset) {
-        List<Post> postList = postRepository.findFreeByTitle(keyword, limit, offset);
+        List<Post> postList = postRepository.findByTitle(keyword, limit, offset, PostType.FREE);
         List<PostWithId> postDtoList = new ArrayList<>();
-        if(postList.isEmpty() || postList == null) {
-            SearchFreeListForm listForm = SearchFreeListForm.builder()
+        if(postList.isEmpty()) {
+            return SearchFreeListForm.builder()
                     .activated(false)
                     .postList(postDtoList)
                     .build();
-            return listForm;
         } else {
-            for (int i = 0; i < postList.size(); i++) {
+            for (Post post : postList) {
                 postDtoList.add(PostWithId.builder()
-                        .title(postList.get(i).getTitle())
-                        .content(postList.get(i).getContent())
-                        .nickname(postList.get(i).getUser().getNickname())
-                        .files(postList.get(i).getPhoto())
-                        .id(postList.get(i).getId())
+                        .title(post.getTitle())
+                        .content(post.getContent())
+                        .nickname(post.getUser().getNickname())
+                        .files(post.getPhoto())
+                        .id(post.getId())
                         .build());
             }
-            SearchFreeListForm listForm = SearchFreeListForm.builder()
+            return SearchFreeListForm.builder()
                     .postList(postDtoList)
                     .activated(true)
                     .build();
-            return listForm;
         }
     }
 
     public SearchTradeListForm searchTradePost(String keyword, int limit, int offset) {
-        List<Post> postList = postRepository.findTradeByTitle(keyword, limit, offset);
+        List<Post> postList = postRepository.findByTitle(keyword, limit, offset, PostType.TRADE);
         List<PostWithIdAndPrice> postDtoList = new ArrayList<>();
-        if(postList.isEmpty() || postList == null) {
-            SearchTradeListForm listForm = SearchTradeListForm.builder()
+        if(postList.isEmpty()) {
+            return SearchTradeListForm.builder()
                     .activated(false)
                     .postList(postDtoList)
                     .build();
-            return listForm;
         } else {
-            for (int i = 0; i < postList.size(); i++) {
+            for (Post post : postList) {
                 postDtoList.add(PostWithIdAndPrice.builder()
-                        .title(postList.get(i).getTitle())
-                        .content(postList.get(i).getContent())
-                        .files(postList.get(i).getPhoto())
-                        .price(postList.get(i).getPrice())
-                        .nickname(postList.get(i).getUser().getNickname())
-                        .tradeStatus(postList.get(i).getTradeStatus())
-                        .id(postList.get(i).getId())
+                        .title(post.getTitle())
+                        .content(post.getContent())
+                        .files(post.getPhoto())
+                        .price(post.getPrice())
+                        .nickname(post.getUser().getNickname())
+                        .tradeStatus(post.getTradeStatus())
+                        .id(post.getId())
                         .build());
             }
-            SearchTradeListForm listForm = SearchTradeListForm.builder()
+            return SearchTradeListForm.builder()
                     .postList(postDtoList)
                     .activated(true)
                     .build();
-            return listForm;
         }
     }
 }

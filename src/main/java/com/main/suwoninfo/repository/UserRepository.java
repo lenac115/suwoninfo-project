@@ -54,7 +54,7 @@ public class UserRepository {
     }
 
     public List<User> findAll() {
-        return entityManager.createQuery("select * from User u")
+        return entityManager.createQuery("select u from User u")
                 .getResultList();
     }
 
