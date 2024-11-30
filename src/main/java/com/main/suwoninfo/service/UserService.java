@@ -135,7 +135,7 @@ public class UserService {
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(email, password);
         // authenticationToken 객체를 통해 Authentication 객체 생성
-        // 이 과정에서 CustomUserDetailsService 에서 우리가 재정의한 loadUserByUsername 메서드 호출
+        // 이 과정에서 CustomUserDetailsService 에서 재정의한 loadUserByUsername 메서드 호출
         Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
         // 인증 정보를 기준으로 jwt access 토큰 생성
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
@@ -166,11 +166,16 @@ public class UserService {
         Authentication authentication = tokenProvider.getAuthentication(requestAccessToken);
 
         String refreshToken = (String) redisUtils.get("RT:" + authentication.getName());
-        if(!requestRefreshToken.equals(refreshToken)) {
+        if(refreshToken == null) {
+            throw new CustomException(UserErrorCode.INVALID_USER_TOKEN);
+        }
+        if(!tokenProvider.validateToken(refreshToken)) {
+            redisUtils.delete("RT:" + authentication.getName());
             throw new CustomException(UserErrorCode.INVALID_USER_TOKEN);
         }
 
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
+        redisUtils.delete("RT:" + authentication.getName());
 
         redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(),
                 1440);
@@ -179,8 +184,9 @@ public class UserService {
     }
 
     public void logout(String accessToken, String refreshToken) {
-        redisUtils.setBlackList(accessToken, "accessToken", 1800);
-        redisUtils.setBlackList(refreshToken, "refreshToken", 60400);
+
+        redisUtils.setBlackList(accessToken, "accessToken", 120);
+        redisUtils.delete("RT:" + refreshToken);
     }
 
     @Transactional

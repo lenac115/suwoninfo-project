@@ -4,6 +4,8 @@ import com.main.suwoninfo.jwt.JwtAccessDeniedHandler;
 import com.main.suwoninfo.jwt.JwtAuthenticationEntryPoint;
 import com.main.suwoninfo.jwt.JwtSecurityConfig;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
+import com.main.suwoninfo.service.UserService;
+import com.main.suwoninfo.utils.RedisUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -25,12 +27,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     private final JwtTokenProvider tokenProvider;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-
-    //비밀번호 인코더
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    private final RedisUtils redisUtils;
+    private final UserService userService;
 
     //권한 설정
     @Override
@@ -70,6 +68,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().permitAll()
 
                 .and()
-                .apply(new JwtSecurityConfig(tokenProvider));
+                .apply(new JwtSecurityConfig(tokenProvider, redisUtils, userService));
     }
 }

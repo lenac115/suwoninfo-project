@@ -61,7 +61,7 @@ public class JwtTokenProvider implements InitializingBean {
 
         // Refresh Token 생성
         String refreshToken = Jwts.builder()
-                .setExpiration(new Date(now + 86400000))
+                .setExpiration(new Date(now + 259200000))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
@@ -94,7 +94,10 @@ public class JwtTokenProvider implements InitializingBean {
     // 토큰 정보를 검증하는 메서드
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token);
             if(redisUtils.hasKeyBlackList(token)) {
                 log.info("Token In Blacklist");
                 return false;
@@ -118,5 +121,17 @@ public class JwtTokenProvider implements InitializingBean {
         } catch (ExpiredJwtException e) {
             return e.getClaims();
         }
+    }
+
+    public boolean isTokenExpired(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token);
+        } catch (ExpiredJwtException e) {
+            return true;
+        }
+        return false;
     }
 }
