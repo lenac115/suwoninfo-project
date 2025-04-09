@@ -92,7 +92,7 @@ public class JwtTokenProvider implements InitializingBean {
     }
 
     // 토큰 정보를 검증하는 메서드
-    public boolean validateToken(String token) {
+    public TokenValidationResult validateToken(String token) {
         try {
             Jwts.parserBuilder()
                     .setSigningKey(key)
@@ -100,19 +100,41 @@ public class JwtTokenProvider implements InitializingBean {
                     .parseClaimsJws(token);
             if(redisUtils.hasKeyBlackList(token)) {
                 log.info("Token In Blacklist");
-                return false;
+                return TokenValidationResult.builder()
+                        .valid(false)
+                        .tokenErrorReason(TokenValidationResult.TokenErrorReason.IN_BLACKLIST)
+                        .build();
             }
-            return true;
+            return TokenValidationResult.builder()
+                    .valid(true)
+                    .tokenErrorReason(TokenValidationResult.TokenErrorReason.VALID)
+                    .build();
+
         } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
             log.info("Invalid JWT Token", e);
+            return TokenValidationResult.builder()
+                    .valid(false)
+                    .tokenErrorReason(TokenValidationResult.TokenErrorReason.INVALID)
+                    .build();
         } catch (ExpiredJwtException e) {
             log.info("Expired JWT Token", e);
+            return TokenValidationResult.builder()
+                    .valid(false)
+                    .tokenErrorReason(TokenValidationResult.TokenErrorReason.EXPIRED)
+                    .build();
         } catch (UnsupportedJwtException e) {
             log.info("Unsupported JWT Token", e);
+            return TokenValidationResult.builder()
+                    .valid(false)
+                    .tokenErrorReason(TokenValidationResult.TokenErrorReason.UNSUPPORTED)
+                    .build();
         } catch (IllegalArgumentException e) {
             log.info("JWT claims string is empty.", e);
+            return TokenValidationResult.builder()
+                    .valid(false)
+                    .tokenErrorReason(TokenValidationResult.TokenErrorReason.JWT_EMPTY)
+                    .build();
         }
-        return false;
     }
 
     private Claims parseClaims(String accessToken) {

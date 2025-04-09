@@ -120,6 +120,7 @@ public class UserService {
     }
 
     //로그인 메소드
+    @Transactional
     public TokenResponse logIn(String email, String password) {
 
         User findUser = userRepository.findByEmail(email)
@@ -159,26 +160,30 @@ public class UserService {
                 .build();
     }
 
+    @Transactional
     public TokenResponse reissue(String requestAccessToken, String requestRefreshToken) {
-        if (!tokenProvider.validateToken(requestRefreshToken)) {
+        if (!tokenProvider.validateToken(requestRefreshToken).getValid()) {
             throw new CustomException(UserErrorCode.INVALID_USER_TOKEN);
         }
+
         Authentication authentication = tokenProvider.getAuthentication(requestAccessToken);
 
-        String refreshToken = (String) redisUtils.get("RT:" + authentication.getName());
-        if(refreshToken == null) {
-            throw new CustomException(UserErrorCode.INVALID_USER_TOKEN);
-        }
-        if(!tokenProvider.validateToken(refreshToken)) {
+        Optional<String> refreshTokenOptional =
+                Optional.ofNullable((String) redisUtils.get("RT:" + authentication.getName()));
+        String refreshToken = refreshTokenOptional.orElseThrow(() -> new CustomException(UserErrorCode.REFRESH_TOKEN_NOT_FOUND_IN_REDIS));
+
+        if (!tokenProvider.validateToken(refreshToken).getValid()) {
             redisUtils.delete("RT:" + authentication.getName());
-            throw new CustomException(UserErrorCode.INVALID_USER_TOKEN);
+            throw new CustomException(UserErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
+
+        if (!requestRefreshToken.equals(refreshToken)) {
+            throw new CustomException(UserErrorCode.TOKEN_MISMATCH_BETWEEN_CLIENT_AND_SERVER);
         }
 
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
-        redisUtils.delete("RT:" + authentication.getName());
-
-        redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(),
-                1440);
+        redisUtils.delete(tokenResponse.getRefreshToken());
+        redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(), 1440);
 
         return tokenResponse;
     }

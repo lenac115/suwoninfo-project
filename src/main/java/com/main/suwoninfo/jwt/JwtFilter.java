@@ -1,5 +1,6 @@
 package com.main.suwoninfo.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.form.TokenResponse;
 import com.main.suwoninfo.service.UserService;
@@ -29,65 +30,79 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // Request Header 에서 JWT 토큰 추출
         String token = resolveToken(request);
 
-        // validateToken 으로 토큰 유효성 검사
-        if (token != null) {
-            if (tokenProvider.validateToken(token)) {
-                // Access Token이 유효한 경우
-                Authentication authentication = tokenProvider.getAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            } else if (tokenProvider.isTokenExpired(token)) {
-                // Access Token이 만료된 경우
-                handleExpiredToken(request, response, token);
-                return; // 요청 처리를 중단하고 새 토큰을 반환
-            } else {
-                // 유효하지 않은 토큰인 경우
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("유효하지 않은 토큰입니다.");
-                return;
+        try {
+            if (token != null) {
+                if (tokenProvider.validateToken(token).getValid()) {
+                    // 유효한 토큰 처리
+                    Authentication authentication = tokenProvider.getAuthentication(token);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println("Authentication set: " + authentication.getName());
+                } else if (tokenProvider.isTokenExpired(token)) {
+                    // Access Token 만료 시 처리
+                    Boolean reissued = handleExpiredToken(request, response, token);
+                    if (!reissued) return;
+                } else {
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
+                    return;
+                }
             }
-        }
 
-        filterChain.doFilter(request, response); // 필터 체인 계속 진행
+            // 필터 체인을 계속 진행
+            filterChain.doFilter(request, response);
+
+        } catch (Exception e) {
+            // 예외 발생 시 처리
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Token processing failed");
+        }
     }
 
-    private void handleExpiredToken(HttpServletRequest request, HttpServletResponse response, String expiredToken)
+    private Boolean handleExpiredToken(HttpServletRequest request, HttpServletResponse response, String expiredToken)
             throws IOException {
-        // Access Token에서 사용자 정보 추출
         Authentication authentication = tokenProvider.getAuthentication(expiredToken);
-        if (authentication == null) {
-            // 사용자 정보를 가져올 수 없으므로 에러 반환
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("만료된 토큰에서 사용자 정보를 추출할 수 없습니다.");
-            return;
-        }
-        String email = authentication.getName(); // 이메일 또는 사용자 고유 ID 추출
 
-        // Redis에서 Refresh Token 조회
+        if (authentication == null) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
+            return false;
+        }
+
+        String email = authentication.getName();
         String refreshToken = (String) redisUtils.get("RT:" + email);
-        if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Refresh Token이 유효하지 않거나 Redis에서 누락되었습니다.");
-            return;
+
+        if (refreshToken != null) {
+            refreshToken = refreshToken.replace("\"", "");
+            if (!tokenProvider.validateToken(refreshToken).getValid()) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
+                return false;
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
+            return false;
         }
 
         try {
-            // Reissue 메서드 호출로 새로운 토큰 발급
+            // 새로운 Access Token 발급
             TokenResponse newTokens = userService.reissue(expiredToken, refreshToken);
 
-            // 새 토큰을 응답 헤더에 추가
             response.setHeader("Authorization", "Bearer " + newTokens.getAccessToken());
-            response.setHeader("Refresh-Token", newTokens.getRefreshToken());
+            redisUtils.set("RT:" + email, newTokens.getRefreshToken(), 4320); // Redis에 Refresh Token 갱신
 
-            // Redis의 기존 Refresh Token 갱신
-            redisUtils.delete("RT:" + email); // 기존 토큰 삭제
-            redisUtils.set("RT:" + email, newTokens.getRefreshToken(), 4320); // 새로운 토큰 저장
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
 
-        } catch (CustomException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("토큰 재발급에 실패했습니다: " + e.getMessage());
+            String json = new ObjectMapper().writeValueAsString(newTokens);
+            response.getWriter().write(json);
+
+            // SecurityContextHolder에 새로운 인증 설정
+            Authentication newAuthentication = tokenProvider.getAuthentication(newTokens.getAccessToken());
+            SecurityContextHolder.getContext().setAuthentication(newAuthentication);
+            return true;
+
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "token generation failed");
+            System.out.println("에러" + e.getMessage());
+            return false;
         }
     }
 
