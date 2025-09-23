@@ -11,7 +11,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,34 +23,29 @@ public class TodoController {
     // 시간표 생성
     @PostMapping("/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> createTodo(@RequestBody String todoDto, @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> createTodo(@RequestBody TodoDto todoDto, @AuthenticationPrincipal UserDetails user) {
         //TodoDto에 맞춰서 객체를 받아오고 생성
-        TodoDto getDto = gson.fromJson(todoDto, TodoDto.class);
-        todoService.createTodo(getDto, user.getUsername());
+        todoService.createTodo(todoDto, user.getUsername());
 
-        return ResponseEntity.status(HttpStatus.OK).body("저장 완료");
+        return ResponseEntity.status(HttpStatus.CREATED).body("저장 완료");
     }
 
     // 시간표 뷰
     @GetMapping("/view")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> view(@AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> view(@AuthenticationPrincipal UserDetails user) {
 
         //user의 시간표를 불러옴
-        List<TodoDto> todoDtoList = todoService.view(user.getUsername());
-        String todoList = gson.toJson(todoDtoList);
-
-        return ResponseEntity.status(HttpStatus.OK).body(todoList);
+        return ResponseEntity.status(HttpStatus.OK).body(todoService.view(user.getUsername()));
     }
 
     // 시간표 수정
     @PostMapping("/update")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> update(@RequestBody String todoDto, @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> update(@RequestBody TodoDto todoDto, @AuthenticationPrincipal UserDetails user) {
 
         // 수정할 TodoDto 내용을 받아 수정
-        TodoDto getDto = gson.fromJson(todoDto, TodoDto.class);
-        todoService.update(getDto, user.getUsername());
+        todoService.update(todoDto, user.getUsername());
 
         return ResponseEntity.status(HttpStatus.OK).body("업데이트 완료");
     }
@@ -59,7 +53,7 @@ public class TodoController {
     // 시간표 삭제
     @DeleteMapping("/delete/{todoId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> delete(@PathVariable Long todoId, @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> delete(@PathVariable Long todoId, @AuthenticationPrincipal UserDetails user) {
 
         todoService.todoDelete(todoId, user.getUsername());
 

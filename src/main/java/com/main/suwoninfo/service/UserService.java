@@ -5,6 +5,7 @@ import com.main.suwoninfo.domain.User;
 import com.main.suwoninfo.domain.UserAuthority;
 import com.main.suwoninfo.form.TokenResponse;
 import com.main.suwoninfo.dto.UserDto;
+import com.main.suwoninfo.form.UserForm;
 import com.main.suwoninfo.form.UserWithAuthorityForm;
 import com.main.suwoninfo.exception.*;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
@@ -14,11 +15,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,8 +37,15 @@ public class UserService {
     private final RedisUtils redisUtils;
 
     @Transactional
-    public User join(UserDto userDto) {
-        User user = dtoToUser(userDto);
+    public UserDto join(UserForm form) {
+        User user = User.builder()
+                .email(form.getEmail())
+                .studentNumber(form.getStudentNumber())
+                .name(form.getName())
+                .nickname(form.getNickname())
+                .password(form.getPassword())
+                .build();
+
         validateDuplicateEmail(user.getEmail());
         validateDuplicateNick(user.getNickname());
 
@@ -52,7 +61,7 @@ public class UserService {
         userRepository.authSave(userAuthority);
         user.getUserAuthorities().add(userAuthority);
 
-        return user;
+        return toDto(user);
     }
 
     //이메일 중복 검증
@@ -72,16 +81,14 @@ public class UserService {
         }
     }
 
-    private User dtoToUser(UserDto userDto) {
+    private UserDto toDto(User user) {
 
-        return User.builder()
-                .email(userDto.getEmail())
-                .name(userDto.getName())
-                .nickname(userDto.getNickname())
-                .password(passwordEncoder.encode(userDto.getPassword()))
-                .studentNumber(userDto.getStudentNumber())
-                .userAuthorities(new ArrayList<>())
-                .activated(true)
+        return UserDto.builder()
+                .email(user.getEmail())
+                .name(user.getName())
+                .nickname(user.getNickname())
+                .password(passwordEncoder.encode(user.getPassword()))
+                .studentNumber(user.getStudentNumber())
                 .build();
     }
 
@@ -141,7 +148,7 @@ public class UserService {
         // 인증 정보를 기준으로 jwt access 토큰 생성
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
 
-        redisUtils.set("RT:"+ email, tokenResponse.getRefreshToken(), 1440);
+        redisUtils.set("RT:"+ email, tokenResponse.getRefreshToken(), Duration.ofMinutes(1440));
 
         return tokenResponse;
     }
@@ -183,15 +190,15 @@ public class UserService {
 
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
         redisUtils.delete(tokenResponse.getRefreshToken());
-        redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(), 1440);
+        redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(), Duration.ofMinutes(1440));
 
         return tokenResponse;
     }
 
-    public void logout(String accessToken, String refreshToken) {
+    public void logout(String username, String accessToken) {
 
-        redisUtils.setBlackList(accessToken, "accessToken", 120);
-        redisUtils.delete("RT:" + refreshToken);
+        redisUtils.setBlackList(accessToken.substring(7), "accessToken", Duration.ofMinutes(120));
+        redisUtils.delete("RT:" + username);
     }
 
     @Transactional

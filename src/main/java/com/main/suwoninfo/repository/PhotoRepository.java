@@ -1,18 +1,15 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Photo;
-import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.domain.QPhoto;
-import com.main.suwoninfo.domain.QPost;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import javax.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 
-import static com.main.suwoninfo.domain.QPost.post;
 
 @RequiredArgsConstructor
 @Repository

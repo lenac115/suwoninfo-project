@@ -3,15 +3,14 @@ package com.main.suwoninfo;
 import com.main.suwoninfo.domain.PostType;
 import com.main.suwoninfo.domain.TradeStatus;
 import com.main.suwoninfo.dto.PostDto;
-import com.main.suwoninfo.dto.UserDto;
+import com.main.suwoninfo.form.UserForm;
 import com.main.suwoninfo.service.CommentService;
 import com.main.suwoninfo.service.PostService;
 import com.main.suwoninfo.service.UserService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.annotation.PostConstruct;
 
 @Component
 @RequiredArgsConstructor
@@ -36,14 +35,14 @@ public class InsertDB {
         private final CommentService commentService;
 
         public void dbInit1() {
-            UserDto userDto = UserDto.builder()
+            UserForm userDto = UserForm.builder()
                     .name("1")
                     .email("1234@naver.com")
                     .studentNumber(17002038L)
                     .nickname("11")
                     .password("456789")
                     .build();
-            UserDto userDto2 = UserDto.builder()
+            UserForm userDto2 = UserForm.builder()
                     .name("2")
                     .email("4567@naver.com")
                     .studentNumber(17002038L)
@@ -71,7 +70,7 @@ public class InsertDB {
                         .title("거래게시글")
                         .postType(PostType.TRADE)
                         .tradeStatus(TradeStatus.READY)
-                        .price("30000")
+                        .price(30000)
                         .build();
                 postService.post(1L, postDto);
             }

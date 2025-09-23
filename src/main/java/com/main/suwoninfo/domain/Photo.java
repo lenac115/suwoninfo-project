@@ -1,15 +1,16 @@
 package com.main.suwoninfo.domain;
 
+import jakarta.persistence.*;
 import lombok.*;
 
-import javax.persistence.*;
-
 @Getter @AllArgsConstructor
-@Entity @NoArgsConstructor
+@Entity
+@NoArgsConstructor
 @Builder
 public class Photo {
 
-    @Id @Column(name = "photo_id")
+    @Id
+    @Column(name = "photo_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

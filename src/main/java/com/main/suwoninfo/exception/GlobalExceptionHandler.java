@@ -4,8 +4,10 @@ import com.main.suwoninfo.form.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -18,6 +20,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        log.warn("handleMethodArgumentNotValid", ex);
+        return handleExceptionInternal(ex, CommonErrorCode.INVALID_PARAMETER);
+    }
+
+
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<Object> handleCustomException(CustomException e) {
         return handleExceptionInternal(e.getErrorCode());
@@ -28,15 +38,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("handleIllegalArgument", e);
         return handleExceptionInternal(CommonErrorCode.INVALID_PARAMETER, e.getMessage());
     }
-    @Override
-    public ResponseEntity<Object> handleBindException(
-            BindException be,
-            HttpHeaders headers,
-            HttpStatus status,
-            WebRequest request) {
-        log.warn("handleIllegalArgument", be);
-        return handleExceptionInternal(be, CommonErrorCode.INVALID_PARAMETER);
-    }
+
 
     @ExceptionHandler({Exception.class})
     public ResponseEntity<Object> handleAllException(Exception e) {
@@ -86,4 +88,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .errors(validationErrorList)
                 .build();
     }
+
 }

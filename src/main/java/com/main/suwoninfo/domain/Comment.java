@@ -1,21 +1,32 @@
 package com.main.suwoninfo.domain;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Getter @Setter
+@Table(
+        name = "comment",
+        indexes = {
+                @Index(name = "idx_comment_post_created_id",
+                        columnList = "post_id,createdTime,id"),
+
+                @Index(name = "idx_comment_user_id_id",
+                        columnList = "user_id,id DESC")
+        }
+)
 public class Comment extends Time {
 
     //comment primary key값 auto increment로 작동
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Id @Column(name = "comment_id")
+    @Id
+    @Column(name = "comment_id")
     private Long id;
 
     //댓글 깊이

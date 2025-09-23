@@ -1,10 +1,9 @@
 package com.main.suwoninfo.domain;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,7 +16,8 @@ public class User extends Time {
 
     // primary key 값
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Id @Column(name = "user_id")
+    @Id
+    @Column(name = "user_id")
     private Long id;
 
     // 로그인 할 경우 사용 될 email

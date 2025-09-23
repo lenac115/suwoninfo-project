@@ -1,12 +1,11 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Todo;
-import com.main.suwoninfo.domain.User;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import javax.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 

@@ -3,7 +3,6 @@ package com.main.suwoninfo.controller;
 import com.google.gson.Gson;
 import com.main.suwoninfo.domain.Photo;
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.domain.PostType;
 import com.main.suwoninfo.domain.User;
 import com.main.suwoninfo.dto.PhotoDto;
 import com.main.suwoninfo.dto.PostDto;
@@ -22,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -37,11 +37,13 @@ public class PostController {
     private final PhotoService photoService;
     private final Gson gson;
 
+    private static final int PAGE_SIZE = 10;
+
 
     // 게시글 작성
     @PostMapping("/free/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> posting(@RequestPart String postForm,
+    public ResponseEntity<?> posting(@RequestPart PostDto postForm,
                                           @AuthenticationPrincipal UserDetails user,
                                           @RequestPart(value = "files", required = false) List<MultipartFile> files)
             throws Exception {
@@ -52,24 +54,18 @@ public class PostController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
-        // PostDto 형식으로 작성된 postForm을 객체화
-        PostDto postDto = gson.fromJson(postForm, PostDto.class);
-        postDto.setPostType(PostType.FREE);
-
         // 포스팅
-        Post posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postDto);
-        postDto.setPostId(posting.getId());
+        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
         if(files != null)
             photoService.addPhoto(Photo.builder()
-                .build(), files, posting.getId());
-        String postJson = gson.toJson(postDto);
+                .build(), files, posting.getPostId());
 
-        return ResponseEntity.status(HttpStatus.OK).body(postJson);
+        return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
 
     @PostMapping("/trade/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> trading(@RequestPart String postForm,
+    public ResponseEntity<?> trading(@RequestPart PostDto postForm,
                                           @AuthenticationPrincipal UserDetails user,
                                           @RequestPart(value = "files", required = false) List<MultipartFile> files)
             throws Exception {
@@ -80,27 +76,21 @@ public class PostController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
-        // PostDto 형식으로 작성된 postForm을 객체화
-        PostDto postDto = gson.fromJson(postForm, PostDto.class);
-        postDto.setPostType(PostType.TRADE);
-
         // 포스팅
-        Post posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postDto);
-        postDto.setPostId(posting.getId());
+        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
         if(files != null)
             photoService.addPhoto(Photo.builder()
-                .build(), files, posting.getId());
-        String postJson = gson.toJson(postDto);
+                .build(), files, postDto.getPostId());
 
-        return ResponseEntity.status(HttpStatus.OK).body(postJson);
+        return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
 
 
     // 게시글 수정
     @PostMapping("/update/{postId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<String> update(@PathVariable Long postId,
-                                         @RequestPart String updateForm,
+    public ResponseEntity<?> update(@PathVariable Long postId,
+                                         @RequestPart PostDto updateForm,
                                          @RequestPart(value = "files", required = false) List<MultipartFile> files,
                                          @AuthenticationPrincipal UserDetails user) throws Exception {
 
@@ -113,36 +103,37 @@ public class PostController {
         if(files != null)
             photoService.addPhoto(Photo.builder()
                 .build(), files, postId);
-        PostDto postDto = gson.fromJson(updateForm, PostDto.class);
 
-        postService.update(postId, userService.findByEmail(user.getUsername()).getId(), postDto);
+        postService.update(postId, userService.findByEmail(user.getUsername()).getId(), updateForm);
 
-        String postJson = gson.toJson(postDto);
-
-        return ResponseEntity.status(HttpStatus.OK).body(postJson);
+        return ResponseEntity.status(HttpStatus.OK).body("업데이트 성공");
     }
 
     @GetMapping("/trade/list")
-    public ResponseEntity<String> tradeList(@RequestParam String page) {
+    public ResponseEntity<?> tradeList(@RequestParam(defaultValue = "1") Integer page) {
 
-        if(CommonUtils.isEmpty(page)){
+        if(page == null){
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
-        int pageNum = (gson.fromJson(page, int.class) - 1) * 10;
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
 
-        List<PostWithIdAndPrice> postList = postService.findTradeByPaging(10, pageNum);
-        int totalPage = postService.countTradePost();
-        int countPage = totalPage / 10;
-        if (totalPage % 10 > 0)
-            countPage += 1;
+        List<PostWithIdAndPrice> postList = postService.findTradeByPaging(10, offset);
+        int totalCount = postService.countTradePost();
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
         PostTradeListForm postListForm = PostTradeListForm.builder()
                 .postList(postList)
-                .totalPage(countPage)
+                .totalPage(totalPage)
                 .build();
-        String listJson = gson.toJson(postListForm);
-        return ResponseEntity.status(HttpStatus.OK).body(listJson);
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
     }
 
     @GetMapping("/free/list")

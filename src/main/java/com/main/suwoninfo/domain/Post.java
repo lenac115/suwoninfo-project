@@ -1,20 +1,30 @@
 package com.main.suwoninfo.domain;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotEmpty;
+
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Getter @Setter
+@Table(
+        name = "post",
+        indexes = {
+                @Index(name = "idx_post_type_status_created_id", columnList = "post_type, trade_status, createdTime DESC, id DESC"),
+                @Index(name = "idx_post_user_id", columnList = "user_id, id DESC"),
+                @Index(name = "idx_post_type_status", columnList = "post_type, trade_status")
+        }
+)
 public class Post extends Time {
 
     // post priamry key값
-    @Id @Column(name = "post_id")
+    @Id
+    @Column(name = "post_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

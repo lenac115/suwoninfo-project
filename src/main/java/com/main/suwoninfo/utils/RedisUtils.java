@@ -5,7 +5,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -14,9 +19,22 @@ public class RedisUtils {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisTemplate<String, Object> redisBlackListTemplate;
 
-    public void set(String key, Object o, int minutes) {
+    public void set(String key, Object o, Duration minutes) {
         redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer(o.getClass()));
-        redisTemplate.opsForValue().set(key, o, minutes, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(key, o, minutes);
+    }
+
+    public List<String> listSet(String key, int start, int end) {
+        return Optional.of(redisTemplate.opsForList().range(key, start, end).stream().map(Object::toString).collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+    }
+
+    public void listRightPush(String key, List<String> list) {
+        redisTemplate.opsForList().rightPushAll(key, list);
+    }
+
+    public void expire(String key, Duration seconds) {
+        redisTemplate.expire(key, seconds);
     }
 
     public Object get(String key) {
@@ -31,9 +49,9 @@ public class RedisUtils {
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 
-    public void setBlackList(String key, Object o, int minutes) {
+    public void setBlackList(String key, Object o, Duration minutes) {
         redisBlackListTemplate.setValueSerializer(new Jackson2JsonRedisSerializer(o.getClass()));
-        redisBlackListTemplate.opsForValue().set(key, o, minutes, TimeUnit.MINUTES);
+        redisBlackListTemplate.opsForValue().set(key, o, minutes);
     }
 
     public Object getBlackList(String key) {
@@ -46,5 +64,9 @@ public class RedisUtils {
 
     public boolean hasKeyBlackList(String key) {
         return Boolean.TRUE.equals(redisBlackListTemplate.hasKey(key));
+    }
+
+    public List<Object> multiGet(List<String> postKeys) {
+        return redisTemplate.opsForValue().multiGet(postKeys);
     }
 }

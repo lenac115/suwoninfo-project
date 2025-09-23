@@ -1,73 +1,75 @@
 package com.main.suwoninfo.config;
 
-import com.main.suwoninfo.jwt.JwtAccessDeniedHandler;
 import com.main.suwoninfo.jwt.JwtAuthenticationEntryPoint;
 import com.main.suwoninfo.jwt.JwtSecurityConfig;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
-import com.main.suwoninfo.service.UserService;
+import com.main.suwoninfo.service.CustomUserDetailService;
 import com.main.suwoninfo.utils.RedisUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.client.RestClient;
 
 /**
  * 비밀번호 인코더와 권한 설정에 대한 Config
  */
 @EnableWebSecurity
+@Configuration
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig {
 
-    private final JwtTokenProvider tokenProvider;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final JwtTokenProvider tokenProvider;
+    private final CustomUserDetailService customUserDetailsService;
+    private final PasswordEncoder passwordEncoder;
     private final RedisUtils redisUtils;
-    private final UserService userService;
+    private final RestClient restClient;
 
-    //권한 설정
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().disable()
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity
+                .authorizeHttpRequests((requests) -> requests
+                        .requestMatchers(HttpMethod.POST, "/auth/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/public/**").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/img/**", "/favicon.ico", "/error").permitAll() //정적파일
+                        .anyRequest().authenticated() // 인증 되지 않는 사용자일 경우 모든 요청을 Spring Security 에서 가로챔(설정한 url을 제외한 url은 이 설정을 적용할 예정)
+                )
+                .formLogin(
+                        AbstractHttpConfigurer::disable
+                )
+                .logout(
+                        AbstractHttpConfigurer::disable
+                )
+                .exceptionHandling((exceptionHandling) -> exceptionHandling
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedPage("/api/users/accessDenied")) // 권한에 따른 접근 불가 페이지 설정
+                .csrf((csrf) -> csrf
+                        .ignoringRequestMatchers("/auth/**"))
+                .sessionManagement((session) -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .with(new JwtSecurityConfig(tokenProvider, redisUtils, restClient), Customizer.withDefaults());
+                /*.cors((cors) -> cors
+                        .configurationSource(corsConfigurationSource()));*/
 
-                .exceptionHandling() // 권한 관련 Exception 핸들링
-                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                .accessDeniedHandler(jwtAccessDeniedHandler)
+        return httpSecurity.build();
+    }
 
-                .and() // 무연결 설정
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-
-                .and() // 권한에 대한 설정
-                .authorizeRequests()
-                .antMatchers("/users/info").authenticated()
-                .antMatchers("/users/update").authenticated()
-                .antMatchers("/post/delete/**").authenticated()
-                .antMatchers("/post/update/**").authenticated()
-                .antMatchers("/post/free/new").authenticated()
-                .antMatchers("/post/trade/new").authenticated()
-                .antMatchers("/post/upload").authenticated()
-                .antMatchers("/comment/notreply").authenticated()
-                .antMatchers("/comment/reply").authenticated()
-                .antMatchers("/comment/update/**").authenticated()
-                .antMatchers("/comment/delete/**").authenticated()
-                .antMatchers("/photo/delete/**").authenticated()
-                .antMatchers("/photo/upload/**").authenticated()
-                .antMatchers("/todo/view").authenticated()
-                .antMatchers("/todo/new").authenticated()
-                .antMatchers("/todo/view").authenticated()
-                .antMatchers("/todo/update").authenticated()
-                .antMatchers("/todo/delete/**").authenticated()
-
-                // 위 url 외 모든 url 권한 허용
-                .anyRequest().permitAll()
-
-                .and()
-                .apply(new JwtSecurityConfig(tokenProvider, redisUtils, userService));
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(customUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder);
+        return authProvider;
     }
 }

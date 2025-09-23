@@ -16,7 +16,7 @@ public class PostDto {
     private Long postId;
     private String title;
     private String content;
-    private String price;
+    private Integer price;
     private PostType postType;
     private TradeStatus tradeStatus;
     private List<PhotoDto> photo;
