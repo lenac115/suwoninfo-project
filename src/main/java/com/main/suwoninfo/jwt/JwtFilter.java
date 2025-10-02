@@ -1,5 +1,6 @@
 package com.main.suwoninfo.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.form.TokenResponse;
 import com.main.suwoninfo.utils.RedisUtils;
 import jakarta.servlet.FilterChain;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +18,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -25,12 +28,21 @@ public class JwtFilter extends OncePerRequestFilter {
     private final RedisUtils redisUtils;
     private final RestClient restClient;
 
+    private boolean isReissue(HttpServletRequest req) {
+        return "POST".equals(req.getMethod()) && req.getRequestURI().endsWith("/users/reissue");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         HttpServletRequestWrapper requestWrapper = new CachingBodyRequestWrapper(request);
         String token = resolveToken(requestWrapper);
+
+        if (isReissue(request)) {
+            filterChain.doFilter(requestWrapper, response);
+            return;
+        }
 
         try {
             if (token != null) {
@@ -41,16 +53,15 @@ public class JwtFilter extends OncePerRequestFilter {
                     System.out.println("Authentication set: " + authentication.getName());
                 } else if (tokenProvider.isTokenExpired(token)) {
                     // Access Token 만료 시 처리
-                    HttpServletRequest reissued = handleExpiredToken(requestWrapper, response, token);
-                    if (reissued != null) filterChain.doFilter(reissued, response);
+                    handleExpiredToken(requestWrapper, response, token, filterChain);
+                    return;
                 } else {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
                     return;
                 }
             }
-
             // 필터 체인을 계속 진행
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(requestWrapper, response);
 
         } catch (Exception e) {
             // 예외 발생 시 처리
@@ -58,13 +69,13 @@ public class JwtFilter extends OncePerRequestFilter {
         }
     }
 
-    private HttpServletRequest handleExpiredToken(HttpServletRequestWrapper request, HttpServletResponse response, String expiredToken)
+    private void handleExpiredToken(HttpServletRequestWrapper request, HttpServletResponse response, String expiredToken, FilterChain filterChain)
             throws IOException {
         Authentication authentication = tokenProvider.getAuthentication(expiredToken);
 
         if (authentication == null) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
-            return null;
+            return;
         }
 
         String email = authentication.getName();
@@ -74,34 +85,34 @@ public class JwtFilter extends OncePerRequestFilter {
             refreshToken = refreshToken.replace("\"", "");
             if (!tokenProvider.validateToken(refreshToken).getValid()) {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
-                return null;
+                return;
             }
         } else {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN");
-            return null;
+            return;
         }
-
         TokenResponse tokenResponse = TokenResponse.builder()
-                .accessToken(expiredToken)
-                .refreshToken(refreshToken)
                 .tokenType("Bearer")
+                .refreshToken(refreshToken)
+                .accessToken(expiredToken)
                 .build();
 
         try {
-            ResponseEntity<TokenResponse> tokenEntity = restClient
+            TokenResponse tokenEntity = restClient
                     .post()
                     .uri("http://localhost:8081/users/reissue")
-                    .header("Authorization", "Bearer " + expiredToken)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(tokenResponse)
+                    .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .toEntity(TokenResponse.class);
-            Map <String, String> mutatedRequestHeader = Map.of("Authorization", "Bearer " + tokenEntity.getBody().getAccessToken());
-            return new CachingBodyRequestWrapper(request, mutatedRequestHeader);
+                    .body(TokenResponse.class);
+            Map<String, String> mutatedRequestHeader = Map.of("Authorization", "Bearer " + tokenEntity.getAccessToken());
+            response.setHeader("New-Access-Token", tokenEntity.getAccessToken());
+            filterChain.doFilter(new CachingBodyRequestWrapper(request, mutatedRequestHeader), response);
 
         } catch (Exception e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "token generation failed");
-            System.out.println("에러" + e.getMessage());
-            return null;
+            System.out.println("에러 : " + e.getMessage());
         }
     }
 

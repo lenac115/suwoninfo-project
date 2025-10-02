@@ -13,16 +13,17 @@ import java.util.*;
 public class CachingBodyRequestWrapper extends HttpServletRequestWrapper {
 
     private byte[] body;
-    private Map<String,String> headers;
+    private final Map<String,String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-    public CachingBodyRequestWrapper(HttpServletRequest request) {
+    public CachingBodyRequestWrapper(HttpServletRequest request) throws IOException {
         super(request);
-        cacheInputStream(request);
+        this.body = request.getInputStream().readAllBytes();
     }
 
-    public CachingBodyRequestWrapper(HttpServletRequest req, Map<String,String> extra) {
-        super(req);
-        this.headers = new HashMap<>(extra);
+    public CachingBodyRequestWrapper(HttpServletRequest request, Map<String,String> extra) {
+        super(request);
+        if (extra != null) headers.putAll(extra);
+        cacheInputStream(request);
     }
 
     private void cacheInputStream(HttpServletRequest request) {

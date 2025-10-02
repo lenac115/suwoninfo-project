@@ -27,7 +27,7 @@ public class FileHandler {
             return fileList;
         }
 
-        // 파일 이름을 업로드 한 날짜로 바꾸어서 저장할 것이다
+        // 파일 이름을 업로드 한 날짜로 바꾸어서 저장
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd");
         String current_date = simpleDateFormat.format(new Date());
 
@@ -48,14 +48,13 @@ public class FileHandler {
             file.mkdirs();
         }
 
-        // 파일들을 이제 만져볼 것이다
         for (MultipartFile multipartFile : multipartFiles) {
-            // 파일이 비어 있지 않을 때 작업을 시작해야 오류가 나지 않는다
+            // 파일이 비어 있지 않을 때 작업을 시작해야 오류가 나지 않음
             if (!multipartFile.isEmpty()) {
                 // jpeg, png, gif 파일들만 받아서 처리할 예정
                 String contentType = multipartFile.getContentType();
                 String originalFileExtension;
-                // 확장자 명이 없으면 이 파일은 잘 못 된 것이다
+                // 확장자 명이 없으면 종료
                 if (ObjectUtils.isEmpty(contentType)) {
                     break;
                 } else {
@@ -66,7 +65,7 @@ public class FileHandler {
                     } else if (contentType.contains("image/gif")) {
                         originalFileExtension = ".gif";
                     }
-                    // 다른 파일 명이면 아무 일 하지 않는다
+                    // 다른 파일 명이면 종료
                     else {
                         break;
                     }

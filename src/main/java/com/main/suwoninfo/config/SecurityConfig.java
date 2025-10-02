@@ -40,8 +40,18 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers(HttpMethod.POST, "/auth/public/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/auth/public/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/new").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/reissue").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/view/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/free/list").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/trade/list").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/trade/list/origin").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/trade/search?**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/free/search?**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/post/trade/new").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/post/free/new").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/img/**", "/favicon.ico", "/error").permitAll() //정적파일
                         .anyRequest().authenticated() // 인증 되지 않는 사용자일 경우 모든 요청을 Spring Security 에서 가로챔(설정한 url을 제외한 url은 이 설정을 적용할 예정)
                 )
@@ -53,9 +63,8 @@ public class SecurityConfig {
                 )
                 .exceptionHandling((exceptionHandling) -> exceptionHandling
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedPage("/api/users/accessDenied")) // 권한에 따른 접근 불가 페이지 설정
-                .csrf((csrf) -> csrf
-                        .ignoringRequestMatchers("/auth/**"))
+                        .accessDeniedPage("/users/accessDenied")) // 권한에 따른 접근 불가 페이지 설정
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .with(new JwtSecurityConfig(tokenProvider, redisUtils, restClient), Customizer.withDefaults());

@@ -1,7 +1,9 @@
 package com.main.suwoninfo.utils;
 
+import com.main.suwoninfo.form.PostWithIdAndPrice;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,7 @@ public class RedisUtils {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisTemplate<String, Object> redisBlackListTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     public void set(String key, Object o, Duration minutes) {
         redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer(o.getClass()));
@@ -25,12 +28,12 @@ public class RedisUtils {
     }
 
     public List<String> listSet(String key, int start, int end) {
-        return Optional.of(redisTemplate.opsForList().range(key, start, end).stream().map(Object::toString).collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+        List<String> r = stringRedisTemplate.opsForList().range(key, start, end);
+        return (r != null) ? r : Collections.emptyList();
     }
 
     public void listRightPush(String key, List<String> list) {
-        redisTemplate.opsForList().rightPushAll(key, list);
+        stringRedisTemplate.opsForList().rightPushAll(key, list);
     }
 
     public void expire(String key, Duration seconds) {

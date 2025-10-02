@@ -1,13 +1,12 @@
 package com.main.suwoninfo.controller;
 
-import com.google.gson.Gson;
-
 import com.main.suwoninfo.dto.*;
 import com.main.suwoninfo.form.*;
 import com.main.suwoninfo.service.UserService;
 import com.main.suwoninfo.utils.CommonUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
-    private final Gson gson;
 
     //유저 생성
     @PostMapping("/new")
@@ -82,12 +80,13 @@ public class UserController {
 
     //토큰 만료시
     @PostMapping("/reissue")
-    @PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")
     public ResponseEntity<?> reissue(@RequestBody TokenResponse tokenResponseForm) {
 
         //토큰 재발급, 다만 토큰 유효성 검사 실패시 로그아웃시키고 홈으로 리다이렉트 시킬것
         TokenResponse tokenRefresh = userService.reissue(tokenResponseForm.getAccessToken(), tokenResponseForm.getRefreshToken());
-        return ResponseEntity.status(HttpStatus.OK).body(tokenRefresh);
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(tokenRefresh);
     }
 
     //로그아웃

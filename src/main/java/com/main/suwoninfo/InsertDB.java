@@ -57,7 +57,7 @@ public class InsertDB {
 
             for(int j = 0; j<11; j++) {
                 PostDto postDto = PostDto.builder()
-                        .content("Free : " + Integer.toString(j))
+                        .content("Free : " + j)
                         .title("자유게시글")
                         .postType(PostType.FREE)
                         .build();
@@ -66,7 +66,7 @@ public class InsertDB {
 
             for(int j = 0; j<11; j++) {
                 PostDto postDto = PostDto.builder()
-                        .content("Trade : " + Integer.toString(j))
+                        .content("Trade : " + j)
                         .title("거래게시글")
                         .postType(PostType.TRADE)
                         .tradeStatus(TradeStatus.READY)

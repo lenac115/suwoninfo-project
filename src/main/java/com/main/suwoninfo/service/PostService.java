@@ -18,7 +18,14 @@ import com.main.suwoninfo.redis.DistributedLock;
 import com.main.suwoninfo.repository.PostRepository;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.RedisUtils;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +42,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PostService {
@@ -42,11 +50,26 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
 
-    private static final int MAX_CACHED_PAGES = 5;
     private static final Duration POST_TTL = Duration.ofHours(1);
     private static final Duration IDS_TTL = Duration.ofMinutes(2);
     private final RedisUtils redisUtils;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
+
+    private Timer redisLrangeTrade;
+    private Timer redisMgetTrade;
+    private Timer apiTradeRebuild;
+    private Counter cachePostHit;
+    private Counter cachePostRebuild;
+
+    @PostConstruct
+    void initService() {
+        this.redisLrangeTrade = meterRegistry.timer("redis.lrange.trade");
+        this.redisMgetTrade = meterRegistry.timer("redis.mget.trade");
+        this.apiTradeRebuild = meterRegistry.timer("api.posts.trade.rebuild");
+        this.cachePostHit = meterRegistry.counter("cache.post.hit");
+        this.cachePostRebuild = meterRegistry.counter("cache.post.rebuild");
+    }
 
     @Transactional
     public PostDto post(Long userId, PostDto postdto) {
@@ -54,6 +77,7 @@ public class PostService {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
         Post post = toPost(postdto);
         post.setUser(user);
+        postRepository.post(post);
         return toDto(post);
     }
 
@@ -119,7 +143,7 @@ public class PostService {
             // cache miss시 일부 누락이면 보충 or 재빌드
             List<String> missingIds = new ArrayList<>();
             for (int i = 0; i < cached.size(); i++) {
-                if(cached.get(i) != null) missingIds.add(idStrs.get(i));
+                if(cached.get(i) == null) missingIds.add(idStrs.get(i));
             }
 
             if(!missingIds.isEmpty() && missingIds.size() <= 3) {
@@ -165,7 +189,9 @@ public class PostService {
                 .map(obj -> objectMapper.convertValue(obj, PostWithId.class)).toList();
     }
 
+    @Timed(value = "api.posts.trade.db", histogram = true)
     public List<PostWithIdAndPrice> findTradeByPagingOrigin(int limit, int offset) {
+        Timer.Sample s = Timer.start(meterRegistry);
         List<Post> postList = postRepository.findByPaging(limit, offset, PostType.TRADE);
         List<PostWithIdAndPrice> postDtoList = new ArrayList<>();
         postList.forEach(post -> postDtoList.add(
@@ -178,21 +204,26 @@ public class PostService {
                         .tradeStatus(post.getTradeStatus())
                         .build()
         ));
+        s.stop(Timer.builder("db.query.trade.list").register(meterRegistry));
         return postDtoList;
     }
 
+    @Timed(value = "api.posts.trade", histogram = true)
     public List<PostWithIdAndPrice> findTradeByPaging(int limit, int offset) {
         int pageIndex = offset / Math.max(limit, 1);
         String idsKey = "posts:ids:trade:page:" + pageIndex + ":size:" + limit;
 
-        List<String> idStrs =  redisUtils.listSet(idsKey, 0, -1);
+        List<String> idStrs = redisLrangeTrade
+                .record(() -> redisUtils.listSet(idsKey, 0, -1));
+
 
         if(idStrs != null && !idStrs.isEmpty()) {
-            List<String> postKeys = idStrs.stream().map(String::valueOf).toList();
-            List<Object> cached = redisUtils.multiGet(postKeys);
+            List<String> postKeys = idStrs.stream().map(id -> "post:" + id).collect(Collectors.toList());
+            List<Object> cached = redisMgetTrade.record(() -> redisUtils.multiGet(postKeys));
 
             if(cached != null && cached.stream().allMatch(Objects::nonNull)) {
-                return cached.stream().map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
+                cachePostHit.increment();
+                return (List) cached;
             }
 
             List<String> missingIds = new ArrayList<>();
@@ -209,8 +240,9 @@ public class PostService {
 
                 if(longIds.size() > missingPost.size()) {
                     redisUtils.expire(idsKey, Duration.ofSeconds(10));
-                    return rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE)
-                            .stream().map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
+                    cachePostRebuild.increment();
+                    return apiTradeRebuild
+                            .record(() -> (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE));
                 }
 
                 Map<Long, Post> idMap = missingPost.stream().collect(Collectors.toMap(Post::getId, Function.identity()));
@@ -228,24 +260,26 @@ public class PostService {
                             redisUtils.set("post:" + id, post, POST_TTL);
                             result.add(post);
                         } else {
-                            return rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE)
-                                    .stream().map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
+                            cachePostRebuild.increment();
+                            return apiTradeRebuild
+                                    .record(() -> (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE));
                         }
                     }
                 }
-
+                cachePostHit.increment();
                 return result;
             }
-            return rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE)
-                    .stream().map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
+            cachePostRebuild.increment();
+            return apiTradeRebuild
+                    .record(() -> (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE));
         }
-
-        return rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE)
-                .stream().map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
+        cachePostRebuild.increment();
+        return apiTradeRebuild
+                .record(() -> (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE));
     }
 
     @DistributedLock(key = "'posts:ids:' + #type + ':page:' + #offset / #limit + ':size:' + #limit")
-    private List<?> rebuildFindWithLock(int limit, int offset, String idsKey, PostType type) {
+    public List<?> rebuildFindWithLock(int limit, int offset, String idsKey, PostType type) {
 
         // double-check
         List<String> existing = redisUtils.listSet(idsKey, 0, -1);

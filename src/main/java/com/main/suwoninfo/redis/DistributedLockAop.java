@@ -6,8 +6,10 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.hibernate.exception.LockAcquisitionException;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
@@ -38,12 +40,17 @@ public class DistributedLockAop {
             }
             return aopForTransaction.proceed(pjp);
         } catch (InterruptedException e) {
-            throw new InterruptedException();
+            Thread.currentThread().interrupt();
+            throw new CannotAcquireLockException("락 흭득 중 인터럽트. key=" + key, e);
         } finally {
-            try {
-                lock.unlock();
-            } catch (IllegalMonitorStateException e) {
-                log.info("Redisson Lock Already UnLock : serviceName {} key {}", method.getName(), key);
+            if (lock.isHeldByCurrentThread()) {
+                try {
+                    lock.unlock();
+                } catch (Exception e) {
+                    log.warn("락 해제 실패. method={} key={} msg={}", method.getName(), key, e.getMessage());
+                }
+            } else {
+                log.debug("락 해제 스킵. method={} key={}", method.getName(), key);
             }
         }
     }

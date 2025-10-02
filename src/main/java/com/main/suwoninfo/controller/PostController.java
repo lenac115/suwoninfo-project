@@ -136,31 +136,62 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.OK).body(postListForm);
     }
 
+    @GetMapping("/trade/list/origin")
+    public ResponseEntity<?> tradeListOrigin(@RequestParam(defaultValue = "1") Integer page) {
+
+        if(page == null){
+            String message = "빈 객체 반환";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
+
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
+
+        List<PostWithIdAndPrice> postList = postService.findTradeByPagingOrigin(10, offset);
+        int totalCount = postService.countTradePost();
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
+        PostTradeListForm postListForm = PostTradeListForm.builder()
+                .postList(postList)
+                .totalPage(totalPage)
+                .build();
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+    }
+
     @GetMapping("/free/list")
-    public ResponseEntity<String> freeList(@RequestParam String page) {
+    public ResponseEntity<?> freeList(@RequestParam Integer page) {
 
         if(CommonUtils.isEmpty(page)){
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
-        int pageNum = (gson.fromJson(page, int.class) - 1) * 10;
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
 
-        List<PostWithId> postList = postService.findFreeByPaging(10, pageNum);
-        int totalPage = postService.countFreePost();
-        int countPage = totalPage / 10;
-        if (totalPage % 10 > 0)
-            countPage += 1;
+        List<PostWithId> postList = postService.findFreeByPaging(10, offset);
+        int totalCount = postService.countFreePost();
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
         PostListForm postListForm = PostListForm.builder()
                 .postList(postList)
-                .totalPage(countPage)
+                .totalPage(totalPage)
                 .build();
-        String listJson = gson.toJson(postListForm);
-        return ResponseEntity.status(HttpStatus.OK).body(listJson);
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<String> view(@PathVariable Long postId) {
+    @GetMapping("/view/{postId}")
+    public ResponseEntity<?> view(@PathVariable Long postId) {
 
         if(CommonUtils.isEmpty(postId)){
             String message = "빈 객체 반환";
@@ -200,9 +231,8 @@ public class PostController {
                 .tradeStatus(postDetail.getTradeStatus())
                 .nickname(postDetail.getUser().getNickname())
                 .build();
-        String detailJson = gson.toJson(postDto);
 
-        return ResponseEntity.status(HttpStatus.OK).body(detailJson);
+        return ResponseEntity.status(HttpStatus.OK).body(postDto);
     }
 
     @DeleteMapping("/delete/{postId}")

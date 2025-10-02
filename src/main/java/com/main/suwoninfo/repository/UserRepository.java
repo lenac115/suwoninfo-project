@@ -2,12 +2,14 @@ package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.User;
 import com.main.suwoninfo.domain.UserAuthority;
+import com.main.suwoninfo.service.UserService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Repository

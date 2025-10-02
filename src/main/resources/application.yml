@@ -1,0 +1,68 @@
+server:
+  port: 8081
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/memberdb2?characterEncoding=UTF-8&serverTimezone=UTC
+    username: root
+    password: tmdhkzh77!
+
+  jpa:
+    hibernate.ddl-auto: create
+    properties.hibernate.format_sql: true
+    properties.hibernate.default_batch_fetch_size: 100
+    open-in-view: true
+
+  data:
+    redis:
+      username: root
+      host: localhost
+      port: 6379
+      password: tmdhkzh77!
+      jedis.pool.min-idle: 0
+      jedis.pool.max-idle: 8
+      jedis.pool.max-active: 8
+  mvc:
+    hiddenmethod:
+      filter:
+        enabled: true
+  servlet:
+    multipart:
+      maxFileSize: 10MB
+      maxRequestSize: 10MB
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type: trace
+    org.springframework.security: debug
+jwt:
+  secret: VlwEyVBsYt9V7zq57TejM223nVUyzb112lYcfPQye08f7MGVA9XkHa
+
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      base-path: /actuator
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "api.posts.trade": true
+        "api.posts.trade.db": true
+        "api.posts.trade.rebuild": true
+        "redis.lrange.trade": true
+        "redis.mget.trade": true
+        "db.query.trade.list": true
+        "cache.rebuild.lock.wait": true
+
+      percentiles:
+        "[api.posts.trade]": 0.5,0.95,0.99
+        "[api.posts.trade.rebuild]": 0.5,0.95,0.99
+
+      minimum-expected-value:
+        "[api.posts.trade]": 1ms
+      maximum-expected-value:
+        "[api.posts.trade]": 5s

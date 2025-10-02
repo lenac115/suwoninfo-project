@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,7 +44,8 @@ public class UserService {
                 .studentNumber(form.getStudentNumber())
                 .name(form.getName())
                 .nickname(form.getNickname())
-                .password(form.getPassword())
+                .password(passwordEncoder.encode(form.getPassword()))
+                .activated(true)
                 .build();
 
         validateDuplicateEmail(user.getEmail());
@@ -55,12 +57,12 @@ public class UserService {
                 .name("ROLE_USER")
                 .build();
 
-        UserAuthority userAuthority = new UserAuthority();
-        userAuthority.setUser(user);
-        userAuthority.setAuthority(authority);
+        UserAuthority userAuthority = UserAuthority.builder()
+                .authority(authority)
+                .user(user)
+                .build();
         userRepository.authSave(userAuthority);
-        user.getUserAuthorities().add(userAuthority);
-
+        user.addAuthority(userAuthority);
         return toDto(user);
     }
 

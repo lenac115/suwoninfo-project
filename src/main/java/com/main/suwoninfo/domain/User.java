@@ -52,4 +52,13 @@ public class User extends Time {
 
     @OneToMany(mappedBy = "user")
     private List<Todo> todoList = new ArrayList<>();
+
+
+
+    public void addAuthority(UserAuthority authority) {
+        if (userAuthorities == null) {
+            userAuthorities = new ArrayList<>();
+        }
+        this.userAuthorities.add(authority);
+    }
 }

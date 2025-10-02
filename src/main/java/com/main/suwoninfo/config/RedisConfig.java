@@ -1,5 +1,8 @@
 package com.main.suwoninfo.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.module.blackbird.BlackbirdModule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
@@ -11,10 +14,10 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
@@ -27,11 +30,11 @@ import java.time.Duration;
 public class RedisConfig {
 
     //프로퍼티스에서 설정한 값을 host로 설정
-    @Value("${spring.redis.host}")
+    @Value("${spring.data.redis.host}")
     private String host;
 
     //프로퍼티스에서 설정한 포트값을 port로 설정
-    @Value("${spring.redis.port}")
+    @Value("${spring.data.redis.port}")
     private int port;
 
     //host값과 port값을 configuration에 넣어서 빈에 올림
@@ -44,15 +47,35 @@ public class RedisConfig {
         return lettuceConnectionFactory;
     }
 
+    @Bean
+    ObjectMapper objectMapper() {
+        return JsonMapper.builder()
+                .addModule(new BlackbirdModule())
+                .build();
+    }
+
     //string과 다른 객체가 들어간경우 사용되는 템플릿
     @Bean
-    public RedisTemplate<String, Object> redisTemplate() {
+    public RedisTemplate<String, Object> generalRedisTemplate(RedisConnectionFactory cf, ObjectMapper objectMapper) {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(redisConnectionFactory());
-        redisTemplate.setKeySerializer(new GenericJackson2JsonRedisSerializer());
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        redisTemplate.setConnectionFactory(cf);
+        redisTemplate.setKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
+        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
+        redisTemplate.setHashKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
+        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
 
         return redisTemplate;
+    }
+
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory cf) {
+        StringRedisTemplate stringRedisTemplate = new StringRedisTemplate();
+        stringRedisTemplate.setConnectionFactory(cf);
+        stringRedisTemplate.setKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
+        stringRedisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
+        stringRedisTemplate.setHashKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
+        stringRedisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
+        return stringRedisTemplate;
     }
 
     @Bean

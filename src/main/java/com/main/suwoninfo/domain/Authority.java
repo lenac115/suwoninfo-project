@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 
 @Entity
 @Getter
-@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

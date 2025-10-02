@@ -28,7 +28,7 @@ public class JwtTokenProvider implements InitializingBean {
 
     private final String secret;
     private Key key;
-    private RedisUtils redisUtils;
+    private final RedisUtils redisUtils;
 
 
     @Override
