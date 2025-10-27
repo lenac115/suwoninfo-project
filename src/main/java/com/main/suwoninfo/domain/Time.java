@@ -6,7 +6,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 
 @Getter
 @MappedSuperclass
@@ -15,9 +16,11 @@ public abstract class Time {
 
     //작성 시간
     @CreatedDate
-    private LocalDateTime createdTime;
+    @Column(name = "created_time", nullable = false, updatable = false)
+    private Instant createdTime;
 
     //최종 수정 시간
     @LastModifiedDate
-    private LocalDateTime modifiedTime;
+    @Column(name = "modified_time", nullable = false)
+    private Instant modifiedTime;
 }

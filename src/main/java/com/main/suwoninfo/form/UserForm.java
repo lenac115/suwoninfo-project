@@ -1,11 +1,12 @@
 package com.main.suwoninfo.form;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 
-@Data
+@Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserForm {
 
     private String email;

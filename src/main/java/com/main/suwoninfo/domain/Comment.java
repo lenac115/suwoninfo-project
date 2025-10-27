@@ -15,10 +15,10 @@ import java.util.List;
         name = "comment",
         indexes = {
                 @Index(name = "idx_comment_post_created_id",
-                        columnList = "post_id,createdTime,id"),
+                        columnList = "post_id, createdTime, comment_id"),
 
                 @Index(name = "idx_comment_user_id_id",
-                        columnList = "user_id,id DESC")
+                        columnList = "user_id, comment_id")
         }
 )
 public class Comment extends Time {

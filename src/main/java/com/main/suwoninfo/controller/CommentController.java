@@ -31,7 +31,7 @@ public class CommentController {
     // 코멘트 뷰
     @GetMapping("/{postId}")
     public ResponseEntity<?> viewComment(@PathVariable Long postId, @RequestParam String page) {
-        if(CommonUtils.isEmpty(postId)){
+        if (CommonUtils.isEmpty(postId)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
@@ -50,11 +50,12 @@ public class CommentController {
     @PostMapping("/notreply")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> notReplyAddComment(@RequestBody CommentWithPostId comment,
-                             @AuthenticationPrincipal UserDetails user) {
+                                                @AuthenticationPrincipal UserDetails user,
+                                                @RequestHeader("Idempotency-Key") String idemKey) {
 
         //Comment의 형식을 가진 commentDto로 저장
         CommentDto commentDto = commentService.notReplyPost(user.getUsername(), comment.getPostId(),
-                comment.getContent());
+                comment.getContent(), idemKey);
 
         return ResponseEntity.status(HttpStatus.OK).body(commentDto);
     }
@@ -63,11 +64,12 @@ public class CommentController {
     @PostMapping("/reply")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> replyAddComment(@RequestBody ReplyWithComment comment,
-                                  @AuthenticationPrincipal UserDetails user) {
+                                             @AuthenticationPrincipal UserDetails user,
+                                             @RequestHeader("Idempotency-Key") String idemKey) {
 
         //Comment의 형식을 가진 commentDto로 저장
         CommentDto commentDto = commentService.replyPost(user.getUsername(), comment.getPostId(),
-                comment.getParentId(), comment.getContent());
+                comment.getParentId(), comment.getContent(), idemKey);
 
         return ResponseEntity.status(HttpStatus.OK).body(commentDto);
     }
@@ -76,7 +78,7 @@ public class CommentController {
     @PostMapping("/update/{commentId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> update(@PathVariable Long commentId, @RequestBody String comment,
-                         @AuthenticationPrincipal UserDetails user) {
+                                    @AuthenticationPrincipal UserDetails user) {
 
         //comment는 글만 있는 형식이기 때문에 String을 그대로 받아 사용
         commentService.update(commentId, user.getUsername(), comment);

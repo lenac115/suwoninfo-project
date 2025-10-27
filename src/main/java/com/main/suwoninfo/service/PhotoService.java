@@ -7,6 +7,7 @@ import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PhotoErrorCode;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.form.PhotoResponse;
+import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.PhotoRepository;
 import com.main.suwoninfo.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +28,12 @@ public class PhotoService {
     private final FileHandler fileHandler;
 
     @Transactional
+    @Idempotent(user = "#principal.id", key = "#idemKey")
     public Photo addPhoto(
             Photo photo,
             List<MultipartFile> files,
-            Long postId
-    ) throws Exception {
+            Long postId,
+            String idemKey) throws Exception {
         // 파일을 저장하고 그 Board 에 대한 list 를 가지고 있는다
         List<Photo> list = fileHandler.parseFileInfo(photo.getId(), files);
         Post findPost = postRepository.findById(postId).orElseThrow(()->  new CustomException(PostErrorCode.NOT_EXIST_POST));

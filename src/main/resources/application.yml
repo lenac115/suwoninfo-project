@@ -10,7 +10,7 @@ spring:
   jpa:
     hibernate.ddl-auto: create
     properties.hibernate.format_sql: true
-    properties.hibernate.default_batch_fetch_size: 100
+    #properties.hibernate.default_batch_fetch_size: 100
     open-in-view: true
 
   data:
@@ -50,19 +50,20 @@ management:
   metrics:
     distribution:
       percentiles-histogram:
-        "api.posts.trade": true
-        "api.posts.trade.db": true
-        "api.posts.trade.rebuild": true
-        "redis.lrange.trade": true
-        "redis.mget.trade": true
-        "db.query.trade.list": true
-        "cache.rebuild.lock.wait": true
+        api.posts.trade: false
+        api.posts.trade.db: false
+        api.posts.trade.rebuild: false
+        redis.lrange.trade: true
+        redis.mget.trade: true
+        db.query.trade.list: true
+        cache.rebuild.lock.wait: true
 
       percentiles:
-        "[api.posts.trade]": 0.5,0.95,0.99
-        "[api.posts.trade.rebuild]": 0.5,0.95,0.99
+        api.posts.trade: 0.5,0.95,0.99
+        api.posts.trade.rebuild: 0.5,0.95,0.99
+        api.posts.trade.db: 0.5,0.95,0.99
 
       minimum-expected-value:
-        "[api.posts.trade]": 1ms
+        "api.posts.trade": 1ms
       maximum-expected-value:
-        "[api.posts.trade]": 5s
+        "api.posts.trade": 5s

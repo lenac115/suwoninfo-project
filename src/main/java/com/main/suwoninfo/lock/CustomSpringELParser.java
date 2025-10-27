@@ -1,4 +1,4 @@
-package com.main.suwoninfo.redis;
+package com.main.suwoninfo.lock;
 
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;

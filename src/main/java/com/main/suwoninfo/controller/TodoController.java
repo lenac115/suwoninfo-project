@@ -23,9 +23,11 @@ public class TodoController {
     // 시간표 생성
     @PostMapping("/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> createTodo(@RequestBody TodoDto todoDto, @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> createTodo(@RequestBody TodoDto todoDto,
+                                        @AuthenticationPrincipal UserDetails user,
+                                        @RequestHeader("Idempotency-Key") String idemKey) {
         //TodoDto에 맞춰서 객체를 받아오고 생성
-        todoService.createTodo(todoDto, user.getUsername());
+        todoService.createTodo(todoDto, user.getUsername(), idemKey);
 
         return ResponseEntity.status(HttpStatus.CREATED).body("저장 완료");
     }

@@ -21,6 +21,10 @@ public class RestClientConfig {
     public RestClient restClient() {
         return RestClient.builder()
                 .requestFactory(customRequestFactory())
+                .requestInterceptor((req, body, ex) -> {
+                    System.out.println("[OUT] " + req.getMethod() + " " + req.getURI());
+                    return ex.execute(req, body);
+                })
                 .build();
     }
 

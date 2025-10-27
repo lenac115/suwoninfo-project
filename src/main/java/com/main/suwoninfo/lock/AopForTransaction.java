@@ -1,4 +1,4 @@
-package com.main.suwoninfo.redis;
+package com.main.suwoninfo.lock;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.stereotype.Component;

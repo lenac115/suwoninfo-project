@@ -32,6 +32,10 @@ public class RedisUtils {
         return (r != null) ? r : Collections.emptyList();
     }
 
+    public Boolean setIfAbsent(String key, Object o, Duration seconds) {
+        return redisTemplate.opsForValue().setIfAbsent(key, o, seconds);
+    }
+
     public void listRightPush(String key, List<String> list) {
         stringRedisTemplate.opsForList().rightPushAll(key, list);
     }

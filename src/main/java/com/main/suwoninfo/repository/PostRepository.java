@@ -2,9 +2,6 @@ package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.domain.PostType;
-import com.main.suwoninfo.domain.QPost;
-import com.main.suwoninfo.exception.CustomException;
-import com.main.suwoninfo.exception.PostErrorCode;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +15,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.main.suwoninfo.domain.QPost.post;
+import static com.main.suwoninfo.domain.QUser.user;
 
 @Repository
 @RequiredArgsConstructor
@@ -49,12 +47,23 @@ public class PostRepository {
 
     public List<Post> findByPaging(int limit, int offset, PostType postType) {
         return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
                 .where(post.postType.eq(postType))
                 .offset(offset)
                 .limit(limit)
-                .orderBy(post.id.desc())
+                .orderBy(post.createdTime.desc(), post.id.desc())
                 .fetch();
     }
+
+    /*public List<Post> findByPagingFetch(int limit, int offset, PostType postType) {
+        return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
+                .where(post.postType.eq(postType))
+                .offset(offset)
+                .limit(limit)
+                .orderBy(post.createdTime.desc(), post.id.desc())
+                .fetch();
+    }*/
 
     public void delete(Post post) {
         entityManager.remove(post);
@@ -76,6 +85,7 @@ public class PostRepository {
 
     public List<Post> findAllById(List<Long> longIds) {
         List<Post> rows = queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
                 .where(post.id.in(longIds))
                 .fetch();
         Map<Long, Post> postMap = rows.stream()

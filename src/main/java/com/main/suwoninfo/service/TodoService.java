@@ -6,10 +6,10 @@ import com.main.suwoninfo.dto.TodoDto;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.TodoErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
+import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.TodoRepository;
 import com.main.suwoninfo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +34,8 @@ public class TodoService {
     }
 
     @Transactional
-    public void createTodo(TodoDto todoDto, String email) {
+    @Idempotent(user = "#principal.id", key = "#idemKey")
+    public void createTodo(TodoDto todoDto, String email, String idemKey) {
         Todo todo = toTodo(todoDto, email);
         List<Todo> todoList = todoRepository.findByUser(email);
         if(todoList.isEmpty())

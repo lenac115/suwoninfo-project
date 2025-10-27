@@ -44,21 +44,22 @@ public class PostController {
     @PostMapping("/free/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> posting(@RequestPart PostDto postForm,
-                                          @AuthenticationPrincipal UserDetails user,
-                                          @RequestPart(value = "files", required = false) List<MultipartFile> files)
+                                     @AuthenticationPrincipal UserDetails user,
+                                     @RequestPart(value = "files", required = false) List<MultipartFile> files,
+                                     @RequestHeader("Idempotency-Key") String idemKey)
             throws Exception {
 
         //postForm이 빈 경우
-        if(CommonUtils.isEmpty(postForm)) {
+        if (CommonUtils.isEmpty(postForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
         // 포스팅
-        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
-        if(files != null)
+        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm, idemKey);
+        if (files != null)
             photoService.addPhoto(Photo.builder()
-                .build(), files, posting.getPostId());
+                    .build(), files, posting.getPostId(), idemKey);
 
         return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
@@ -66,21 +67,22 @@ public class PostController {
     @PostMapping("/trade/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> trading(@RequestPart PostDto postForm,
-                                          @AuthenticationPrincipal UserDetails user,
-                                          @RequestPart(value = "files", required = false) List<MultipartFile> files)
+                                     @AuthenticationPrincipal UserDetails user,
+                                     @RequestPart(value = "files", required = false) List<MultipartFile> files,
+                                     @RequestHeader("Idempotency-Key") String idemKey)
             throws Exception {
 
         //postForm이 빈 경우
-        if(CommonUtils.isEmpty(postForm)) {
+        if (CommonUtils.isEmpty(postForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
         // 포스팅
-        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
-        if(files != null)
+        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm, idemKey);
+        if (files != null)
             photoService.addPhoto(Photo.builder()
-                .build(), files, postDto.getPostId());
+                    .build(), files, postDto.getPostId(), idemKey);
 
         return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
@@ -90,19 +92,20 @@ public class PostController {
     @PostMapping("/update/{postId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> update(@PathVariable Long postId,
-                                         @RequestPart PostDto updateForm,
-                                         @RequestPart(value = "files", required = false) List<MultipartFile> files,
-                                         @AuthenticationPrincipal UserDetails user) throws Exception {
+                                    @RequestPart PostDto updateForm,
+                                    @RequestPart(value = "files", required = false) List<MultipartFile> files,
+                                    @AuthenticationPrincipal UserDetails user,
+                                    @RequestHeader("Idempotency-Key") String idemKey) throws Exception {
 
         // 빈 객체 반환
-        if(CommonUtils.isEmpty(updateForm)){
+        if (CommonUtils.isEmpty(updateForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
-        if(files != null)
+        if (files != null)
             photoService.addPhoto(Photo.builder()
-                .build(), files, postId);
+                    .build(), files, postId, idemKey);
 
         postService.update(postId, userService.findByEmail(user.getUsername()).getId(), updateForm);
 
@@ -112,7 +115,7 @@ public class PostController {
     @GetMapping("/trade/list")
     public ResponseEntity<?> tradeList(@RequestParam(defaultValue = "1") Integer page) {
 
-        if(page == null){
+        if (page == null) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
@@ -136,7 +139,7 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.OK).body(postListForm);
     }
 
-    @GetMapping("/trade/list/origin")
+    /*@GetMapping("/trade/list/origin")
     public ResponseEntity<?> tradeListOrigin(@RequestParam(defaultValue = "1") Integer page) {
 
         if(page == null){
@@ -161,12 +164,39 @@ public class PostController {
                 .totalPage(totalPage)
                 .build();
         return ResponseEntity.status(HttpStatus.OK).body(postListForm);
-    }
+    }*/
+
+    /*@GetMapping("/trade/list/origin-fetch")
+    public ResponseEntity<?> tradeListOriginFetch(@RequestParam(defaultValue = "1") Integer page) {
+
+        if(page == null){
+            String message = "빈 객체 반환";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
+
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
+
+        List<PostWithIdAndPrice> postList = postService.findTradeByPagingOriginFetch(10, offset);
+        int totalCount = postService.countTradePost();
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
+        PostTradeListForm postListForm = PostTradeListForm.builder()
+                .postList(postList)
+                .totalPage(totalPage)
+                .build();
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+    }*/
 
     @GetMapping("/free/list")
     public ResponseEntity<?> freeList(@RequestParam Integer page) {
 
-        if(CommonUtils.isEmpty(page)){
+        if (CommonUtils.isEmpty(page)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
@@ -193,12 +223,12 @@ public class PostController {
     @GetMapping("/view/{postId}")
     public ResponseEntity<?> view(@PathVariable Long postId) {
 
-        if(CommonUtils.isEmpty(postId)){
+        if (CommonUtils.isEmpty(postId)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
         Post postDetail = postService.findById(postId);
-        if(postDetail.getPhoto().isEmpty()) {
+        if (postDetail.getPhoto().isEmpty()) {
             PostWithNickName postDto = PostWithNickName.builder()
                     .content(postDetail.getContent())
                     .title(postDetail.getTitle())
@@ -213,7 +243,7 @@ public class PostController {
         }
         int size = postDetail.getPhoto().size();
         List<PhotoDto> photoList = new ArrayList<>();
-        for(int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             PhotoDto photo = PhotoDto.builder()
                     .photoId(postDetail.getPhoto().get(i).getId())
                     .filePath(postDetail.getPhoto().get(i).getFilePath())
@@ -238,7 +268,7 @@ public class PostController {
     @DeleteMapping("/delete/{postId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<String> delete(@PathVariable Long postId, @AuthenticationPrincipal UserDetails userDetails) {
-        if(CommonUtils.isEmpty(postId)){
+        if (CommonUtils.isEmpty(postId)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
@@ -261,7 +291,7 @@ public class PostController {
             countPage += 1;
 
 
-        if(!postList.isActivated())
+        if (!postList.isActivated())
             return ResponseEntity.status(HttpStatus.OK).body("결과값이 존재하지 않음");
 
         postList.setTotalPage(countPage);
@@ -282,7 +312,7 @@ public class PostController {
             countPage += 1;
 
 
-        if(!postList.isActivated())
+        if (!postList.isActivated())
             return ResponseEntity.status(HttpStatus.OK).body("결과값이 존재하지 않음");
 
         postList.setTotalPage(countPage);

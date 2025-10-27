@@ -1,4 +1,4 @@
-package com.main.suwoninfo.redis;
+package com.main.suwoninfo.lock;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

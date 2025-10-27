@@ -9,6 +9,7 @@ import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
 import com.main.suwoninfo.form.CommentWithParent;
+import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.CommentRepository;
 import com.main.suwoninfo.repository.PostRepository;
 import com.main.suwoninfo.repository.UserRepository;
@@ -31,7 +32,8 @@ public class CommentService {
     private final UserRepository userRepository;
 
     @Transactional
-    public CommentDto notReplyPost(String email, Long boardId, String detail) {
+    @Idempotent(user = "#email", key = "#idemKey")
+    public CommentDto notReplyPost(String email, Long boardId, String detail, String idemKey) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)
@@ -51,7 +53,8 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentDto replyPost(String email, Long boardId, Long commentId, String detail) {
+    @Idempotent(user = "#email", key = "#idemKey")
+    public CommentDto replyPost(String email, Long boardId, Long commentId, String detail, String idemKey) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)

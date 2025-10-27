@@ -8,6 +8,7 @@ import com.main.suwoninfo.dto.UserDto;
 import com.main.suwoninfo.form.UserForm;
 import com.main.suwoninfo.form.UserWithAuthorityForm;
 import com.main.suwoninfo.exception.*;
+import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.RedisUtils;
@@ -15,13 +16,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +37,9 @@ public class UserService {
     private final RedisUtils redisUtils;
 
     @Transactional
-    public UserDto join(UserForm form) {
+    @Idempotent(user = "#form.email", key = "#idemKey")
+    public UserDto join(UserForm form, String idemKey) {
+        System.out.println("조인");
         User user = User.builder()
                 .email(form.getEmail())
                 .studentNumber(form.getStudentNumber())
@@ -62,6 +63,7 @@ public class UserService {
                 .user(user)
                 .build();
         userRepository.authSave(userAuthority);
+        System.out.println("가입완료");
         user.addAuthority(userAuthority);
         return toDto(user);
     }
@@ -130,7 +132,8 @@ public class UserService {
 
     //로그인 메소드
     @Transactional
-    public TokenResponse logIn(String email, String password) {
+    @Idempotent(user = "#email", key = "#idemKey")
+    public TokenResponse logIn(String email, String password, String idemKey) {
 
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));

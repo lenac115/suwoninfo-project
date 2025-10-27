@@ -15,9 +15,10 @@ import java.util.List;
 @Table(
         name = "post",
         indexes = {
-                @Index(name = "idx_post_type_status_created_id", columnList = "post_type, trade_status, createdTime DESC, id DESC"),
-                @Index(name = "idx_post_user_id", columnList = "user_id, id DESC"),
-                @Index(name = "idx_post_type_status", columnList = "post_type, trade_status")
+                @Index(name = "idx_post_feed_pt",
+                        columnList = "post_type, created_time, post_id"),
+                @Index(name = "idx_post_user",
+                        columnList = "user_id, post_id")
         }
 )
 public class Post extends Time {
