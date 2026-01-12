@@ -38,7 +38,8 @@ public class User extends Time {
 
     //학번
     private Long studentNumber;
-    
+
+    @Column(columnDefinition = "boolean default true")
     private boolean activated;
 
     @OneToMany(mappedBy = "user")

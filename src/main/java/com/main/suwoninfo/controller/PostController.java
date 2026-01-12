@@ -3,6 +3,7 @@ package com.main.suwoninfo.controller;
 import com.google.gson.Gson;
 import com.main.suwoninfo.domain.Photo;
 import com.main.suwoninfo.domain.Post;
+import com.main.suwoninfo.domain.PostType;
 import com.main.suwoninfo.domain.User;
 import com.main.suwoninfo.dto.PhotoDto;
 import com.main.suwoninfo.dto.PostDto;
@@ -12,11 +13,13 @@ import com.main.suwoninfo.service.PostService;
 import com.main.suwoninfo.service.UserService;
 import com.main.suwoninfo.utils.CommonUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +33,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/post")
+@Slf4j
 public class PostController {
 
     private final PostService postService;
@@ -115,6 +119,8 @@ public class PostController {
     @GetMapping("/trade/list")
     public ResponseEntity<?> tradeList(@RequestParam(defaultValue = "1") Integer page) {
 
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         if (page == null) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
@@ -123,89 +129,9 @@ public class PostController {
         int pageIndex = page - 1;
         int offset = pageIndex * PAGE_SIZE;
 
-        List<PostWithIdAndPrice> postList = postService.findTradeByPaging(10, offset);
-        int totalCount = postService.countTradePost();
-        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
-
-        if (totalPage == 0 || pageIndex >= totalPage) {
-            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
-        }
-
-        PostTradeListForm postListForm = PostTradeListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
-    }
-
-    /*@GetMapping("/trade/list/origin")
-    public ResponseEntity<?> tradeListOrigin(@RequestParam(defaultValue = "1") Integer page) {
-
-        if(page == null){
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
-
-        List<PostWithIdAndPrice> postList = postService.findTradeByPagingOrigin(10, offset);
-        int totalCount = postService.countTradePost();
-        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
-
-        if (totalPage == 0 || pageIndex >= totalPage) {
-            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
-        }
-
-        PostTradeListForm postListForm = PostTradeListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
-    }*/
-
-    /*@GetMapping("/trade/list/origin-fetch")
-    public ResponseEntity<?> tradeListOriginFetch(@RequestParam(defaultValue = "1") Integer page) {
-
-        if(page == null){
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
-
-        List<PostWithIdAndPrice> postList = postService.findTradeByPagingOriginFetch(10, offset);
-        int totalCount = postService.countTradePost();
-        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
-
-        if (totalPage == 0 || pageIndex >= totalPage) {
-            PostTradeListForm empty = PostTradeListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
-        }
-
-        PostTradeListForm postListForm = PostTradeListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
-    }*/
-
-    @GetMapping("/free/list")
-    public ResponseEntity<?> freeList(@RequestParam Integer page) {
-
-        if (CommonUtils.isEmpty(page)) {
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
-
-        List<PostWithId> postList = postService.findFreeByPaging(10, offset);
-        int totalCount = postService.countFreePost();
+        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.TRADE);
+        int totalCount = postService.countPost(PostType.TRADE);
+        //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
 
         if (totalPage == 0 || pageIndex >= totalPage) {
@@ -217,6 +143,96 @@ public class PostController {
                 .postList(postList)
                 .totalPage(totalPage)
                 .build();
+
+        stopWatch.stop();
+        log.info("=============================================");
+        log.info("조건: Type={}, Page={}", "TRADE", page);
+        log.info("조회 건수: {}개", postList.size());
+        log.info("걸린 시간: {} ms ({} 초)",
+                stopWatch.getTotalTimeMillis(),
+                stopWatch.getTotalTimeSeconds());
+        log.info("=============================================");
+
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+    }
+
+    @GetMapping("/trade/list/test")
+    public ResponseEntity<?> tradeListTest(@RequestParam(defaultValue = "1") Integer page) {
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        if (page == null) {
+            String message = "빈 객체 반환";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
+
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
+
+        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.TRADE);
+        //int totalCount = postService.countPost(PostType.TRADE);
+        int totalCount = postService.countTradePost();
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
+        PostListForm postListForm = PostListForm.builder()
+                .postList(postList)
+                .totalPage(totalPage)
+                .build();
+
+        stopWatch.stop();
+        log.info("=============================================");
+        log.info("조건: Type={}, Page={}", "TRADE", page);
+        log.info("조회 건수: {}개", postList.size());
+        log.info("걸린 시간: {} ms ({} 초)",
+                stopWatch.getTotalTimeMillis(),
+                stopWatch.getTotalTimeSeconds());
+        log.info("=============================================");
+
+        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+    }
+
+
+    @GetMapping("/free/list")
+    public ResponseEntity<?> freeList(@RequestParam Integer page) {
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        if (CommonUtils.isEmpty(page)) {
+            String message = "빈 객체 반환";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
+
+        int pageIndex = page - 1;
+        int offset = pageIndex * PAGE_SIZE;
+
+        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.FREE);
+        int totalCount = postService.countPost(PostType.FREE);
+        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        if (totalPage == 0 || pageIndex >= totalPage) {
+            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
+            return ResponseEntity.ok(empty);
+        }
+
+        PostListForm postListForm = PostListForm.builder()
+                .postList(postList)
+                .totalPage(totalPage)
+                .build();
+
+        stopWatch.stop();
+        log.info("=============================================");
+        log.info("조건: Type={}, Page={}", "FREE", page);
+        log.info("조회 건수: {}개", postList.size());
+        log.info("걸린 시간: {} ms ({} 초)",
+                stopWatch.getTotalTimeMillis(),
+                stopWatch.getTotalTimeSeconds());
+        log.info("=============================================");
+
         return ResponseEntity.status(HttpStatus.OK).body(postListForm);
     }
 

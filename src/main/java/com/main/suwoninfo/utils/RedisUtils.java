@@ -32,6 +32,10 @@ public class RedisUtils {
         return (r != null) ? r : Collections.emptyList();
     }
 
+    public void stringSet(String key, String value, Duration minutes) {
+        stringRedisTemplate.opsForValue().set(key, value, minutes);
+    }
+
     public Boolean setIfAbsent(String key, Object o, Duration seconds) {
         return redisTemplate.opsForValue().setIfAbsent(key, o, seconds);
     }
@@ -46,6 +50,10 @@ public class RedisUtils {
 
     public Object get(String key) {
         return redisTemplate.opsForValue().get(key);
+    }
+
+    public Object stringGet (String key) {
+        return stringRedisTemplate.opsForValue().get(key);
     }
 
     public boolean delete(String key) {

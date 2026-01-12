@@ -2,6 +2,7 @@ package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.domain.PostType;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -46,28 +47,34 @@ public class PostRepository {
     }
 
     public List<Post> findByPaging(int limit, int offset, PostType postType) {
-        return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
+
+        List<Long> ids = queryFactory.select(post.id)
+                .from(post)
                 .where(post.postType.eq(postType))
                 .offset(offset)
                 .limit(limit)
+                .orderBy(post.createdTime.desc(), post.id.desc())
+                .fetch();
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
+                .where(post.id.in(ids))
                 .orderBy(post.createdTime.desc(), post.id.desc())
                 .fetch();
     }
-
-    /*public List<Post> findByPagingFetch(int limit, int offset, PostType postType) {
-        return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
-                .where(post.postType.eq(postType))
-                .offset(offset)
-                .limit(limit)
-                .orderBy(post.createdTime.desc(), post.id.desc())
-                .fetch();
-    }*/
 
     public void delete(Post post) {
         entityManager.remove(post);
     }
+
+    public int countPost(PostType postType) {
+        return Math.toIntExact(queryFactory.select(post.count())
+                .from(post)
+                .where(post.postType.eq(postType))
+                .fetchOne());    }
 
     public int countFreePost() {
         return Math.toIntExact(queryFactory.select(post.count())

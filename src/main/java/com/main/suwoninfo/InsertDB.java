@@ -28,9 +28,9 @@ public class InsertDB {
 
     @EventListener(WebServerInitializedEvent.class)
     public void init() throws Exception {
-        initService.dbInit1();
+        /*initService.dbInit1();
         initService.dbInit2();
-        initService.dbInit3();
+        initService.dbInit3()*/;
     }
 
     @Component

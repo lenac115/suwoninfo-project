@@ -13,13 +13,7 @@ import java.util.List;
 @Entity
 @Getter @Setter
 @Table(
-        name = "post",
-        indexes = {
-                @Index(name = "idx_post_feed_pt",
-                        columnList = "post_type, created_time, post_id"),
-                @Index(name = "idx_post_user",
-                        columnList = "user_id, post_id")
-        }
+        name = "post"
 )
 public class Post extends Time {
 

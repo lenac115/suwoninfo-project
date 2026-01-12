@@ -12,14 +12,7 @@ import java.util.List;
 @Entity
 @Getter @Setter
 @Table(
-        name = "comment",
-        indexes = {
-                @Index(name = "idx_comment_post_created_id",
-                        columnList = "post_id, createdTime, comment_id"),
-
-                @Index(name = "idx_comment_user_id_id",
-                        columnList = "user_id, comment_id")
-        }
+        name = "comment"
 )
 public class Comment extends Time {
 

@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/post/view/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/free/list").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/trade/list").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/post/trade/list/origin").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/post/trade/list/test").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/trade/list/origin-fetch").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/trade/search?**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/free/search?**").permitAll()

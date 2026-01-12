@@ -36,6 +36,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // request는 한번 읽은 뒤엔 읽는 것이 불가능하므로 래퍼 클래스로 옮겨서 읽음
         HttpServletRequestWrapper requestWrapper = new CachingBodyRequestWrapper(request);
         String token = resolveToken(requestWrapper);
 
@@ -97,6 +98,8 @@ public class JwtFilter extends OncePerRequestFilter {
                 .accessToken(expiredToken)
                 .build();
 
+
+        // http 탈취 후 new-access-token이란 이름으로 헤더 주입
         try {
             TokenResponse tokenEntity = restClient
                     .post()

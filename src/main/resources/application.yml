@@ -8,7 +8,7 @@ spring:
     password: tmdhkzh77!
 
   jpa:
-    hibernate.ddl-auto: create
+    hibernate.ddl-auto: update
     properties.hibernate.format_sql: true
     #properties.hibernate.default_batch_fetch_size: 100
     open-in-view: true

@@ -10,6 +10,6 @@ import java.util.List;
 @AllArgsConstructor
 public class PostListForm {
 
-    private List<PostWithId> postList;
+    private List<PostWithIdAndPrice> postList;
     private int totalPage;
 }

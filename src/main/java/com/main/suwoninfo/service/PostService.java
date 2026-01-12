@@ -27,10 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -46,6 +43,7 @@ public class PostService {
 
     private static final Duration POST_TTL = Duration.ofHours(1);
     private static final Duration IDS_TTL = Duration.ofMinutes(2);
+    private static final Duration COUNT_TTL = Duration.ofMinutes(5);
     private final RedisUtils redisUtils;
     private final ObjectMapper objectMapper;
 
@@ -87,25 +85,9 @@ public class PostService {
         }
     }
 
-    /*
-    public List<PostWithId> findFreeByPagingOrigin(int limit, int offset) {
-
-        List<Post> postList = postRepository.findByPaging(limit, offset, PostType.FREE);
-        List<PostWithId> postDtoList = new ArrayList<>();
-
-        postList.forEach(post -> postDtoList.add(PostWithId.builder()
-                        .title(post.getTitle())
-                        .content(post.getContent())
-                        .nickname(post.getUser().getNickname())
-                        .id(post.getId())
-                .build()));
-
-        return postDtoList;
-    }*/
-
-    public List<PostWithId> findFreeByPaging(int limit, int offset) {
+    public List<PostWithIdAndPrice> findPostList(int limit, int offset, PostType postType) {
         int pageIndex = offset / Math.max(limit, 1);
-        String idsKey = "posts:ids:free:page:" + pageIndex + ":size:" + limit;
+        String idsKey = "posts:ids:" + postType + ":page:" + pageIndex + ":size:" + limit;
 
         List<String> idStrs = redisUtils.listSet(idsKey, 0, -1);
 
@@ -117,11 +99,15 @@ public class PostService {
             // cache hit
             if (cached != null && cached.stream().allMatch(Objects::nonNull)) {
                 return cached.stream()
-                        .map(obj -> objectMapper.convertValue(obj, PostWithId.class))
+                        .map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class))
                         .collect(Collectors.toList());
             }
 
             // cache miss시 일부 누락이면 보충 or 재빌드
+            if (cached != null && cached.stream().allMatch(Objects::nonNull)) {
+                return (List) cached;
+            }
+
             List<String> missingIds = new ArrayList<>();
             for (int i = 0; i < cached.size(); i++) {
                 if (cached.get(i) == null) missingIds.add(idStrs.get(i));
@@ -132,110 +118,11 @@ public class PostService {
                 List<Post> missingPosts = postRepository.findAllById(longIds);
                 if (longIds.size() > missingPosts.size()) {
                     redisUtils.expire(idsKey, Duration.ofSeconds(10));
-                    return rebuildFindWithLock(limit, offset, idsKey, PostType.FREE).stream()
-                            .map(obj -> objectMapper.convertValue(obj, PostWithId.class)).toList();
+                    return rebuildFindWithLock(limit, offset, idsKey, postType).stream()
+                            .map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
                 }
                 Map<Long, Post> idMap = missingPosts.stream().collect(Collectors.toMap(Post::getId, Function.identity()));
 
-                List<PostWithId> result = new ArrayList<>();
-
-                for (String id : idStrs) {
-                    Object cachedObj = redisUtils.get("post:" + id);
-
-                    if (cachedObj != null) {
-                        result.add(objectMapper.convertValue(cachedObj, PostWithId.class));
-                    } else {
-                        Post p = idMap.get(Long.valueOf(id));
-
-                        if (p != null) {
-                            PostWithId pw = toWithIdOnlyPost(p);
-                            redisUtils.set("post:" + id, pw, POST_TTL);
-                            result.add(pw);
-                        } else {
-                            return rebuildFindWithLock(limit, offset, idsKey, PostType.FREE).stream()
-                                    .map(obj -> objectMapper.convertValue(obj, PostWithId.class)).toList();
-                        }
-                    }
-                }
-
-                return result;
-            }
-            // 다수 누락 재빌드
-            return rebuildFindWithLock(limit, offset, idsKey, PostType.FREE).stream()
-                    .map(obj -> objectMapper.convertValue(obj, PostWithId.class)).toList();
-        }
-
-        // idsKey null 재빌드
-        return rebuildFindWithLock(limit, offset, idsKey, PostType.FREE).stream()
-                .map(obj -> objectMapper.convertValue(obj, PostWithId.class)).toList();
-    }
-
-
-    /*public List<PostWithIdAndPrice> findTradeByPagingOrigin(int limit, int offset) {
-        List<Post> postList = postRepository.findByPaging(limit, offset, PostType.TRADE);
-        List<PostWithIdAndPrice> postDtoList = new ArrayList<>();
-        postList.forEach(post -> postDtoList.add(
-                PostWithIdAndPrice.builder()
-                        .title(post.getTitle())
-                        .content(post.getContent())
-                        .nickname(post.getUser().getNickname())
-                        .id(post.getId())
-                        .price(post.getPrice())
-                        .tradeStatus(post.getTradeStatus())
-                        .build()
-        ));
-        return postDtoList;
-    }*/
-
-    /*public List<PostWithIdAndPrice> findTradeByPagingOriginFetch(int limit, int offset) {
-        List<Post> postList = postRepository.findByPagingFetch(limit, offset, PostType.TRADE);
-        List<PostWithIdAndPrice> postDtoList = new ArrayList<>();
-        postList.forEach(post -> postDtoList.add(
-                PostWithIdAndPrice.builder()
-                        .title(post.getTitle())
-                        .content(post.getContent())
-                        .nickname(post.getUser().getNickname())
-                        .id(post.getId())
-                        .price(post.getPrice())
-                        .tradeStatus(post.getTradeStatus())
-                        .build()
-        ));
-        return postDtoList;
-    }*/
-
-    public List<PostWithIdAndPrice> findTradeByPaging(int limit, int offset) {
-        int pageIndex = offset / Math.max(limit, 1);
-        String idsKey = "posts:ids:trade:page:" + pageIndex + ":size:" + limit;
-
-        List<String> idStrs = redisUtils.listSet(idsKey, 0, -1);
-
-
-        if (idStrs != null && !idStrs.isEmpty()) {
-            List<String> postKeys = idStrs.stream().map(id -> "post:" + id).collect(Collectors.toList());
-            List<Object> cached = redisUtils.multiGet(postKeys);
-
-            if (cached != null && cached.stream().allMatch(Objects::nonNull)) {
-                return (List) cached;
-            }
-
-            List<String> missingIds = new ArrayList<>();
-
-            for (int i = 0; i < cached.size(); i++) {
-                if (cached.get(i) == null) {
-                    missingIds.add(idStrs.get(i));
-                }
-            }
-
-            if (missingIds.size() <= 3 && !missingIds.isEmpty()) {
-                List<Long> longIds = missingIds.stream().map(Long::parseLong).toList();
-                List<Post> missingPost = postRepository.findAllById(longIds);
-
-                if (longIds.size() > missingPost.size()) {
-                    redisUtils.expire(idsKey, Duration.ofSeconds(10));
-                    return (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE);
-                }
-
-                Map<Long, Post> idMap = missingPost.stream().collect(Collectors.toMap(Post::getId, Function.identity()));
                 List<PostWithIdAndPrice> result = new ArrayList<>();
 
                 for (String id : idStrs) {
@@ -245,20 +132,28 @@ public class PostService {
                         result.add(objectMapper.convertValue(cachedObj, PostWithIdAndPrice.class));
                     } else {
                         Post p = idMap.get(Long.valueOf(id));
+
                         if (p != null) {
-                            PostWithIdAndPrice post = toWithIdAndPriceOnlyPost(p);
-                            redisUtils.set("post:" + id, post, POST_TTL);
-                            result.add(post);
+                            PostWithIdAndPrice pw = toWithIdAndPriceOnlyPost(p);
+                            redisUtils.set("post:" + id, pw, POST_TTL);
+                            result.add(pw);
                         } else {
-                            return (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE);
+                            return rebuildFindWithLock(limit, offset, idsKey, postType).stream()
+                                    .map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
                         }
                     }
                 }
+
                 return result;
             }
-            return (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE);
+            // 다수 누락 재빌드
+            return rebuildFindWithLock(limit, offset, idsKey, postType).stream()
+                    .map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
         }
-        return (List) rebuildFindWithLock(limit, offset, idsKey, PostType.TRADE);
+
+        // idsKey null 재빌드
+        return rebuildFindWithLock(limit, offset, idsKey, postType).stream()
+                .map(obj -> objectMapper.convertValue(obj, PostWithIdAndPrice.class)).toList();
     }
 
     @DistributedLock(key = "'posts:ids:' + #type + ':page:' + #offset / #limit + ':size:' + #limit")
@@ -278,6 +173,9 @@ public class PostService {
                 }
             }
         }
+
+        redisUtils.delete("posts:" + type + ":count");
+        redisUtils.stringSet("posts:" + type + ":count", String.valueOf(postRepository.countPost(type)), COUNT_TTL);
 
         List<Post> posts;
         List<PostWithId> dtoListWithId;
@@ -338,6 +236,20 @@ public class PostService {
 
     public int countTradePost() {
         return postRepository.countTradePost();
+    }
+
+    public int countPost(PostType postType) {
+
+        //return postRepository.countTradePost();
+
+        Object objCount = redisUtils.stringGet("posts:" + postType + ":count");
+        if (objCount == null) {
+            int count = postRepository.countPost(postType);
+            redisUtils.stringSet("posts:" + postType + ":count", String.valueOf(count), COUNT_TTL);
+            return count;
+        } else {
+            return Integer.parseInt(objCount.toString());
+        }
     }
 
     public SearchFreeListForm searchFreePost(String keyword, int limit, int offset) {
