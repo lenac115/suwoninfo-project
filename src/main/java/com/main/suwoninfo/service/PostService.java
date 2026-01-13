@@ -49,8 +49,8 @@ public class PostService {
 
 
     @Transactional
-    @Idempotent(user = "#userId", key = "#idemKey")
-    public PostDto post(Long userId, PostDto postdto, String idemKey) {
+    @Idempotent(key = "#userId")
+    public PostDto post(Long userId, PostDto postdto) {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
         Post post = toPost(postdto);

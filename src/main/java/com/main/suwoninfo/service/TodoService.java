@@ -34,8 +34,8 @@ public class TodoService {
     }
 
     @Transactional
-    @Idempotent(user = "#principal.id", key = "#idemKey")
-    public void createTodo(TodoDto todoDto, String email, String idemKey) {
+    @Idempotent(key = "#email")
+    public void createTodo(TodoDto todoDto, String email) {
         Todo todo = toTodo(todoDto, email);
         List<Todo> todoList = todoRepository.findByUser(email);
         if(todoList.isEmpty())

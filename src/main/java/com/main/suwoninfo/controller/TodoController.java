@@ -24,10 +24,9 @@ public class TodoController {
     @PostMapping("/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> createTodo(@RequestBody TodoDto todoDto,
-                                        @AuthenticationPrincipal UserDetails user,
-                                        @RequestHeader("Idempotency-Key") String idemKey) {
+                                        @AuthenticationPrincipal UserDetails user) {
         //TodoDto에 맞춰서 객체를 받아오고 생성
-        todoService.createTodo(todoDto, user.getUsername(), idemKey);
+        todoService.createTodo(todoDto, user.getUsername());
 
         return ResponseEntity.status(HttpStatus.CREATED).body("저장 완료");
     }

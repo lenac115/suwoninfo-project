@@ -49,8 +49,7 @@ public class PostController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> posting(@RequestPart PostDto postForm,
                                      @AuthenticationPrincipal UserDetails user,
-                                     @RequestPart(value = "files", required = false) List<MultipartFile> files,
-                                     @RequestHeader("Idempotency-Key") String idemKey)
+                                     @RequestPart(value = "files", required = false) List<MultipartFile> files)
             throws Exception {
 
         //postForm이 빈 경우
@@ -60,10 +59,10 @@ public class PostController {
         }
 
         // 포스팅
-        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm, idemKey);
+        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
         if (files != null)
             photoService.addPhoto(Photo.builder()
-                    .build(), files, posting.getPostId(), idemKey);
+                    .build(), files, posting.getPostId());
 
         return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
@@ -72,8 +71,7 @@ public class PostController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> trading(@RequestPart PostDto postForm,
                                      @AuthenticationPrincipal UserDetails user,
-                                     @RequestPart(value = "files", required = false) List<MultipartFile> files,
-                                     @RequestHeader("Idempotency-Key") String idemKey)
+                                     @RequestPart(value = "files", required = false) List<MultipartFile> files)
             throws Exception {
 
         //postForm이 빈 경우
@@ -83,10 +81,10 @@ public class PostController {
         }
 
         // 포스팅
-        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm, idemKey);
+        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
         if (files != null)
             photoService.addPhoto(Photo.builder()
-                    .build(), files, postDto.getPostId(), idemKey);
+                    .build(), files, postDto.getPostId());
 
         return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
@@ -109,7 +107,7 @@ public class PostController {
 
         if (files != null)
             photoService.addPhoto(Photo.builder()
-                    .build(), files, postId, idemKey);
+                    .build(), files, postId);
 
         postService.update(postId, userService.findByEmail(user.getUsername()).getId(), updateForm);
 

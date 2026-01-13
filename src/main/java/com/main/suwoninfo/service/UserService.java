@@ -37,8 +37,8 @@ public class UserService {
     private final RedisUtils redisUtils;
 
     @Transactional
-    @Idempotent(user = "#form.email", key = "#idemKey")
-    public UserDto join(UserForm form, String idemKey) {
+    @Idempotent(key = "#form.email")
+    public UserDto join(UserForm form) {
         System.out.println("조인");
         User user = User.builder()
                 .email(form.getEmail())
@@ -132,8 +132,8 @@ public class UserService {
 
     //로그인 메소드
     @Transactional
-    @Idempotent(user = "#email", key = "#idemKey")
-    public TokenResponse logIn(String email, String password, String idemKey) {
+    @Idempotent(key = "#email")
+    public TokenResponse logIn(String email, String password) {
 
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));

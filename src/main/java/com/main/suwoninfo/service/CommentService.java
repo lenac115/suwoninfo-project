@@ -32,8 +32,8 @@ public class CommentService {
     private final UserRepository userRepository;
 
     @Transactional
-    @Idempotent(user = "#email", key = "#idemKey")
-    public CommentDto notReplyPost(String email, Long boardId, String detail, String idemKey) {
+    @Idempotent(key = "#email")
+    public CommentDto notReplyPost(String email, Long boardId, String detail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)
@@ -53,8 +53,8 @@ public class CommentService {
     }
 
     @Transactional
-    @Idempotent(user = "#email", key = "#idemKey")
-    public CommentDto replyPost(String email, Long boardId, Long commentId, String detail, String idemKey) {
+    @Idempotent(key = "#email")
+    public CommentDto replyPost(String email, Long boardId, Long commentId, String detail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.utils.RedisUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -18,6 +19,8 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -52,7 +55,9 @@ public class IdempotentAspect {
         String idemKey = eval(ann.key(), ctx);
         String contentStr = eval(ann.content(), ctx);
 
-        if (userId == null || userId.isBlank()) throw new IllegalArgumentException("유저 미존재");
+        if (userId == null || userId.isBlank()) {
+            userId = getClientIp();
+        }
         if (idemKey == null || idemKey.isBlank()) throw new IllegalArgumentException("멱등키 미존재");
 
         Duration ttl = Duration.ofSeconds(ann.ttlSeconds());
@@ -116,6 +121,28 @@ public class IdempotentAspect {
             redisUtils.set(dupKey, writeResponse(re), dttl);
         }
         return result;
+    }
+
+    private String getClientIp() {
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+
+            if (attributes != null) return "UNKNOWN";
+            HttpServletRequest request = attributes.getRequest();
+            String ip = request.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("Proxy-Client-IP");
+            }
+            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("WL-Proxy-Client-IP");
+            }
+            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getRemoteAddr();
+            }
+            return ip;
+        } catch (Exception e) {
+            return "UNKNOWN";
+        }
     }
 
     private String eval(String spel, EvaluationContext ctx) throws Throwable {

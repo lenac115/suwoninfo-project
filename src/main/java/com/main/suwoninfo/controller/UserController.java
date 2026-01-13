@@ -25,7 +25,7 @@ public class UserController {
 
     //유저 생성
     @PostMapping("/new")
-    public ResponseEntity<?> createUser(@RequestBody UserForm receivedForm, @RequestHeader("Idempotency-Key") String idemKey) {
+    public ResponseEntity<?> createUser(@RequestBody UserForm receivedForm) {
 
         System.out.println(receivedForm.getEmail());
         if(CommonUtils.isEmpty(receivedForm)) {
@@ -34,21 +34,21 @@ public class UserController {
         }
 
         //유저 정보를 dto화 시켜서 join 실행
-        UserDto createdUser = userService.join(receivedForm, idemKey);
+        UserDto createdUser = userService.join(receivedForm);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
     //유저 로그인
     @PostMapping("/login")
-    public ResponseEntity<?> logIn(@RequestBody UserLoginForm receivedLoginForm, @RequestHeader(name = "Idempotency-Key")  String idemKey) {
+    public ResponseEntity<?> logIn(@RequestBody UserLoginForm receivedLoginForm) {
 
         if(CommonUtils.isEmpty(receivedLoginForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
         //받은 유저 정보를 토대로 토큰 생성
-        TokenResponse tokenResponse = userService.logIn(receivedLoginForm.getEmail(), receivedLoginForm.getPassword(), idemKey);
+        TokenResponse tokenResponse = userService.logIn(receivedLoginForm.getEmail(), receivedLoginForm.getPassword());
 
         return ResponseEntity.status(HttpStatus.OK).body(tokenResponse);
     }
