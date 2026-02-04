@@ -1,12 +1,9 @@
 package com.main.suwoninfo.service;
 
-import com.main.suwoninfo.domain.Authority;
 import com.main.suwoninfo.domain.User;
-import com.main.suwoninfo.domain.UserAuthority;
-import com.main.suwoninfo.form.TokenResponse;
-import com.main.suwoninfo.dto.UserDto;
-import com.main.suwoninfo.form.UserForm;
-import com.main.suwoninfo.form.UserWithAuthorityForm;
+import com.main.suwoninfo.dto.TokenResponse;
+import com.main.suwoninfo.dto.UserRequest;
+import com.main.suwoninfo.dto.UserResponse;
 import com.main.suwoninfo.exception.*;
 import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
@@ -21,8 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
+
+import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
 
 
 @Service
@@ -38,14 +36,15 @@ public class UserService {
 
     @Transactional
     @Idempotent(key = "#form.email")
-    public UserDto join(UserForm form) {
+    public UserResponse join(UserRequest form) {
         System.out.println("조인");
         User user = User.builder()
-                .email(form.getEmail())
-                .studentNumber(form.getStudentNumber())
-                .name(form.getName())
-                .nickname(form.getNickname())
-                .password(passwordEncoder.encode(form.getPassword()))
+                .email(form.email())
+                .studentNumber(form.studentNumber())
+                .name(form.name())
+                .nickname(form.nickname())
+                .password(passwordEncoder.encode(form.password()))
+                .auth(User.Auth.USER)
                 .activated(true)
                 .build();
 
@@ -53,19 +52,8 @@ public class UserService {
         validateDuplicateNick(user.getNickname());
 
         userRepository.save(user);
-
-        Authority authority = Authority.builder()
-                .name("ROLE_USER")
-                .build();
-
-        UserAuthority userAuthority = UserAuthority.builder()
-                .authority(authority)
-                .user(user)
-                .build();
-        userRepository.authSave(userAuthority);
         System.out.println("가입완료");
-        user.addAuthority(userAuthority);
-        return toDto(user);
+        return toUserResponse(user);
     }
 
     //이메일 중복 검증
@@ -85,22 +73,6 @@ public class UserService {
         }
     }
 
-    private UserDto toDto(User user) {
-
-        return UserDto.builder()
-                .email(user.getEmail())
-                .name(user.getName())
-                .nickname(user.getNickname())
-                .password(passwordEncoder.encode(user.getPassword()))
-                .studentNumber(user.getStudentNumber())
-                .build();
-    }
-
-    //전체 유저 리스트
-    public List<User> findAll() {
-        return userRepository.findAll();
-    }
-
     //primary key 값으로 유저 검색
     public User findById(Long id) {
         return userRepository.findById(id).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
@@ -114,14 +86,14 @@ public class UserService {
 
     //dirty checking을 이용한 update 메소드
     @Transactional
-    public UserDto update(Long id, String password, String nickName, Long studentNum) {
+    public UserResponse update(Long id, String password, String nickName, Long studentNum) {
         User findUser = userRepository.findById(id).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
 
         if(password != null) findUser.setPassword(passwordEncoder.encode(password));
         if(nickName != null) findUser.setNickname(nickName);
         if(studentNum != null) findUser.setStudentNumber(studentNum);
 
-        return UserDto.builder()
+        return UserResponse.builder()
                 .studentNumber(findUser.getStudentNumber())
                 .name(findUser.getName())
                 .nickname(findUser.getNickname())
@@ -153,23 +125,15 @@ public class UserService {
         // 인증 정보를 기준으로 jwt access 토큰 생성
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
 
-        redisUtils.set("RT:"+ email, tokenResponse.getRefreshToken(), Duration.ofMinutes(1440));
+        redisUtils.set("RT:"+ email, tokenResponse.refreshToken(), Duration.ofMinutes(1440));
 
         return tokenResponse;
     }
 
-    public UserWithAuthorityForm getUserInfo(String email) {
+    public UserResponse getUserInfo(String email) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() ->  new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
-        List<String> userAuthority = userRepository.findAuthById(email);
-
-        return UserWithAuthorityForm.builder()
-                .name(user.getName())
-                .studentNumber(user.getStudentNumber().toString())
-                .email(user.getEmail())
-                .nickname(user.getNickname())
-                .authority(userAuthority)
-                .build();
+        return toUserResponse(user);
     }
 
     @Transactional
@@ -194,8 +158,8 @@ public class UserService {
         }
 
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
-        redisUtils.delete(tokenResponse.getRefreshToken());
-        redisUtils.set("RT:" + authentication.getName(), tokenResponse.getRefreshToken(), Duration.ofMinutes(1440));
+        redisUtils.delete(tokenResponse.refreshToken());
+        redisUtils.set("RT:" + authentication.getName(), tokenResponse.refreshToken(), Duration.ofMinutes(1440));
 
         return tokenResponse;
     }

@@ -1,7 +1,6 @@
 package com.main.suwoninfo.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.main.suwoninfo.form.TokenResponse;
+import com.main.suwoninfo.dto.TokenResponse;
 import com.main.suwoninfo.utils.RedisUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
@@ -18,7 +16,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -109,8 +106,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(TokenResponse.class);
-            Map<String, String> mutatedRequestHeader = Map.of("Authorization", "Bearer " + tokenEntity.getAccessToken());
-            response.setHeader("New-Access-Token", tokenEntity.getAccessToken());
+            Map<String, String> mutatedRequestHeader = Map.of("Authorization", "Bearer " + tokenEntity.accessToken());
+            response.setHeader("New-Access-Token", tokenEntity.accessToken());
             filterChain.doFilter(new CachingBodyRequestWrapper(request, mutatedRequestHeader), response);
 
         } catch (Exception e) {

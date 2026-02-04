@@ -2,11 +2,10 @@ package com.main.suwoninfo.service;
 
 import com.main.suwoninfo.domain.Photo;
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.dto.PhotoDto;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PhotoErrorCode;
 import com.main.suwoninfo.exception.PostErrorCode;
-import com.main.suwoninfo.form.PhotoResponse;
+import com.main.suwoninfo.dto.PhotoResponse;
 import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.PhotoRepository;
 import com.main.suwoninfo.repository.PostRepository;
@@ -16,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static com.main.suwoninfo.utils.ToUtils.toPhotoResponse;
 
 @RequiredArgsConstructor
 @Service
@@ -67,22 +67,9 @@ public class PhotoService {
     }
 
     @Transactional(readOnly = true)
-    public PhotoDto findByFileId(Long id) {
+    public PhotoResponse findByFileId(Long id) {
 
         Photo photo = photoRepository.findById(id).orElseThrow(() -> new CustomException(PhotoErrorCode.NOT_EXIST_PHOTO));
-        return PhotoDto.builder()
-                .filePath(photo.getFilePath())
-                .fileSize(photo.getFileSize())
-                .origFileName(photo.getOrigFileName())
-                .build();
-    }
-
-    public List<PhotoResponse> findAllByBoard(Long boardId){
-
-        List<Photo> photoList = photoRepository.findByPost(boardId);
-
-        return photoList.stream()
-                .map(PhotoResponse::new)
-                .collect(Collectors.toList());
+        return toPhotoResponse(photo);
     }
 }

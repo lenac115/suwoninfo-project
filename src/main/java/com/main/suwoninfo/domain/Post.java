@@ -1,20 +1,25 @@
 package com.main.suwoninfo.domain;
 
+import com.main.suwoninfo.dto.PostResponse;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter @Setter
+@Getter
 @Table(
-        name = "post"
+        name = "post", indexes = {
+        @Index(name = "idx_post_type_created_at", columnList = "postType, createdTime DESC")
+}
 )
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Post extends Time {
 
     // post priamry key값
@@ -60,10 +65,22 @@ public class Post extends Time {
         });
     }
 
-    public boolean inspectTitle(Post post, String title) {
-        if(post.getTitle() == title) {
-            return true;
-        }
-        return false;
+    public void update(PostResponse postDto) {
+        this.postType = postDto.postType();
+        this.price = postDto.price();
+        this.tradeStatus = postDto.tradeStatus();
+        this.title = postDto.title();
+        this.content = postDto.content();
+    }
+
+    public enum PostType {
+        FREE,
+        TRADE
+    }
+
+    public enum TradeStatus {
+        READY,
+        NOW_TRADING,
+        DONE
     }
 }

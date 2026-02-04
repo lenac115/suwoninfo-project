@@ -1,8 +1,6 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.domain.PostType;
-import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.main.suwoninfo.domain.QPhoto.photo;
 import static com.main.suwoninfo.domain.QPost.post;
 import static com.main.suwoninfo.domain.QUser.user;
 
@@ -35,7 +34,7 @@ public class PostRepository {
                 .getResultList().stream().findAny();
     }
 
-    public List<Post> findByTitle(String keyword, int limit, int offset, PostType postType) {
+    public List<Post> findByTitle(String keyword, int limit, int offset, Post.PostType postType) {
         return queryFactory.selectFrom(post)
                 .where(post.postType.eq(postType)
                         .and(post.title.like("%" + keyword + "%")
@@ -46,7 +45,7 @@ public class PostRepository {
                 .fetch();
     }
 
-    public List<Post> findByPaging(int limit, int offset, PostType postType) {
+    public List<Post> findByPaging(int limit, int offset, Post.PostType postType) {
 
         List<Long> ids = queryFactory.select(post.id)
                 .from(post)
@@ -61,6 +60,7 @@ public class PostRepository {
 
         return queryFactory.selectFrom(post)
                 .join(post.user, user).fetchJoin()
+                .leftJoin(post.photo, photo).fetchJoin()
                 .where(post.id.in(ids))
                 .orderBy(post.createdTime.desc(), post.id.desc())
                 .fetch();
@@ -70,23 +70,10 @@ public class PostRepository {
         entityManager.remove(post);
     }
 
-    public int countPost(PostType postType) {
+    public int countPost(Post.PostType postType) {
         return Math.toIntExact(queryFactory.select(post.count())
                 .from(post)
                 .where(post.postType.eq(postType))
-                .fetchOne());    }
-
-    public int countFreePost() {
-        return Math.toIntExact(queryFactory.select(post.count())
-                .from(post)
-                .where(post.postType.eq(PostType.FREE))
-                .fetchOne());
-    }
-
-    public int countTradePost() {
-        return Math.toIntExact(queryFactory.select(post.count())
-                .from(post)
-                .where(post.postType.eq(PostType.TRADE))
                 .fetchOne());
     }
 

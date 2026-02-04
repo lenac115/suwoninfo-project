@@ -1,10 +1,7 @@
 package com.main.suwoninfo.controller;
 
-import com.main.suwoninfo.dto.CommentDto;
-import com.main.suwoninfo.form.CommentListForm;
-import com.main.suwoninfo.form.CommentWithParent;
-import com.main.suwoninfo.form.CommentWithPostId;
-import com.main.suwoninfo.form.ReplyWithComment;
+import com.main.suwoninfo.dto.CommentRequest;
+import com.main.suwoninfo.dto.CommentResponse;
 import com.main.suwoninfo.service.CommentService;
 import com.main.suwoninfo.utils.CommonUtils;
 import lombok.RequiredArgsConstructor;
@@ -36,25 +33,21 @@ public class CommentController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
         //Long postLongId = gson.fromJson(postId, Long.class);
-        List<CommentWithParent> postDetail = commentService.findByPaging(postId);
+        List<CommentResponse> commentResponses = commentService.findByPaging(postId);
 
-        //form으로 변경
-        CommentListForm commentListForm = CommentListForm.builder()
-                .commentList(postDetail)
-                .build();
 
-        return ResponseEntity.status(HttpStatus.OK).body(commentListForm);
+        return ResponseEntity.status(HttpStatus.OK).body(commentResponses);
     }
 
     //답글이 아닌 코멘트 작성
     @PostMapping("/notreply")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> notReplyAddComment(@RequestBody CommentWithPostId comment,
+    public ResponseEntity<?> notReplyAddComment(@RequestBody CommentRequest comment,
                                                 @AuthenticationPrincipal UserDetails user) {
 
         //Comment의 형식을 가진 commentDto로 저장
-        CommentDto commentDto = commentService.notReplyPost(user.getUsername(), comment.getPostId(),
-                comment.getContent());
+        CommentResponse commentDto = commentService.notReplyPost(user.getUsername(), comment.postResponse().postId(),
+                comment.content());
 
         return ResponseEntity.status(HttpStatus.OK).body(commentDto);
     }
@@ -62,12 +55,12 @@ public class CommentController {
     //코멘트의 답글 작성
     @PostMapping("/reply")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> replyAddComment(@RequestBody ReplyWithComment comment,
+    public ResponseEntity<?> replyAddComment(@RequestBody CommentRequest comment,
                                              @AuthenticationPrincipal UserDetails user) {
 
         //Comment의 형식을 가진 commentDto로 저장
-        CommentDto commentDto = commentService.replyPost(user.getUsername(), comment.getPostId(),
-                comment.getParentId(), comment.getContent());
+        CommentResponse commentDto = commentService.replyPost(user.getUsername(), comment.postResponse().postId(),
+                comment.parent().id(), comment.content());
 
         return ResponseEntity.status(HttpStatus.OK).body(commentDto);
     }

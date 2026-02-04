@@ -3,12 +3,11 @@ package com.main.suwoninfo.controller;
 import com.google.gson.Gson;
 import com.main.suwoninfo.domain.Photo;
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.domain.PostType;
 import com.main.suwoninfo.domain.User;
-import com.main.suwoninfo.dto.PhotoDto;
-import com.main.suwoninfo.dto.PostDto;
-import com.main.suwoninfo.form.*;
+import com.main.suwoninfo.dto.PostRequest;
+import com.main.suwoninfo.dto.PostResponse;
 import com.main.suwoninfo.service.PhotoService;
+import com.main.suwoninfo.service.PostFacade;
 import com.main.suwoninfo.service.PostService;
 import com.main.suwoninfo.service.UserService;
 import com.main.suwoninfo.utils.CommonUtils;
@@ -23,9 +22,9 @@ import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+
+import static com.main.suwoninfo.utils.ToUtils.toPostResponse;
 
 /**
  * 게시글 관련 컨트롤러
@@ -37,6 +36,7 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+    private final PostFacade postFacade;
     private final UserService userService;
     private final PhotoService photoService;
     private final Gson gson;
@@ -45,9 +45,9 @@ public class PostController {
 
 
     // 게시글 작성
-    @PostMapping("/free/new")
+    @PostMapping("/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> posting(@RequestPart PostDto postForm,
+    public ResponseEntity<?> posting(@RequestPart PostRequest postForm,
                                      @AuthenticationPrincipal UserDetails user,
                                      @RequestPart(value = "files", required = false) List<MultipartFile> files)
             throws Exception {
@@ -59,45 +59,21 @@ public class PostController {
         }
 
         // 포스팅
-        PostDto posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
+        PostResponse posting = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
         if (files != null)
             photoService.addPhoto(Photo.builder()
-                    .build(), files, posting.getPostId());
+                    .build(), files, posting.postId());
 
         return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
     }
-
-    @PostMapping("/trade/new")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> trading(@RequestPart PostDto postForm,
-                                     @AuthenticationPrincipal UserDetails user,
-                                     @RequestPart(value = "files", required = false) List<MultipartFile> files)
-            throws Exception {
-
-        //postForm이 빈 경우
-        if (CommonUtils.isEmpty(postForm)) {
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        // 포스팅
-        PostDto postDto = postService.post(userService.findByEmail(user.getUsername()).getId(), postForm);
-        if (files != null)
-            photoService.addPhoto(Photo.builder()
-                    .build(), files, postDto.getPostId());
-
-        return ResponseEntity.status(HttpStatus.OK).body("게시 성공");
-    }
-
 
     // 게시글 수정
     @PostMapping("/update/{postId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> update(@PathVariable Long postId,
-                                    @RequestPart PostDto updateForm,
+                                    @RequestPart PostResponse updateForm,
                                     @RequestPart(value = "files", required = false) List<MultipartFile> files,
-                                    @AuthenticationPrincipal UserDetails user,
-                                    @RequestHeader("Idempotency-Key") String idemKey) throws Exception {
+                                    @AuthenticationPrincipal UserDetails user) throws Exception {
 
         // 빈 객체 반환
         if (CommonUtils.isEmpty(updateForm)) {
@@ -114,8 +90,8 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.OK).body("업데이트 성공");
     }
 
-    @GetMapping("/trade/list")
-    public ResponseEntity<?> tradeList(@RequestParam(defaultValue = "1") Integer page) {
+    @GetMapping("/list")
+    public ResponseEntity<?> joinList(@RequestParam(defaultValue = "1") Integer page, @RequestParam Post.PostType type) {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
@@ -127,20 +103,14 @@ public class PostController {
         int pageIndex = page - 1;
         int offset = pageIndex * PAGE_SIZE;
 
-        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.TRADE);
-        int totalCount = postService.countPost(PostType.TRADE);
+        List<PostResponse> postList = postFacade.findPostList(10, offset, type);
+        int totalCount = postService.countPost(type);
         //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
 
         if (totalPage == 0 || pageIndex >= totalPage) {
-            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
+            return ResponseEntity.ok(null);
         }
-
-        PostListForm postListForm = PostListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
 
         stopWatch.stop();
         log.info("=============================================");
@@ -151,11 +121,11 @@ public class PostController {
                 stopWatch.getTotalTimeSeconds());
         log.info("=============================================");
 
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+        return ResponseEntity.status(HttpStatus.OK).body(postList);
     }
 
-    @GetMapping("/trade/list/test")
-    public ResponseEntity<?> tradeListTest(@RequestParam(defaultValue = "1") Integer page) {
+    @GetMapping("/list/test")
+    public ResponseEntity<?> joinListTest(@RequestParam(defaultValue = "1") Integer page, @RequestParam Post.PostType type) {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
@@ -167,20 +137,14 @@ public class PostController {
         int pageIndex = page - 1;
         int offset = pageIndex * PAGE_SIZE;
 
-        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.TRADE);
-        //int totalCount = postService.countPost(PostType.TRADE);
-        int totalCount = postService.countTradePost();
+        List<PostResponse> postList = postService.findPostListTest(10, offset, type);
+        int totalCount = postService.countPost(type);
+        //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
 
         if (totalPage == 0 || pageIndex >= totalPage) {
-            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
+            return ResponseEntity.ok(null);
         }
-
-        PostListForm postListForm = PostListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
 
         stopWatch.stop();
         log.info("=============================================");
@@ -191,47 +155,7 @@ public class PostController {
                 stopWatch.getTotalTimeSeconds());
         log.info("=============================================");
 
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
-    }
-
-
-    @GetMapping("/free/list")
-    public ResponseEntity<?> freeList(@RequestParam Integer page) {
-
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-        if (CommonUtils.isEmpty(page)) {
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
-
-        List<PostWithIdAndPrice> postList = postService.findPostList(10, offset, PostType.FREE);
-        int totalCount = postService.countPost(PostType.FREE);
-        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
-
-        if (totalPage == 0 || pageIndex >= totalPage) {
-            PostListForm empty = PostListForm.builder().postList(Collections.emptyList()).totalPage(totalPage).build();
-            return ResponseEntity.ok(empty);
-        }
-
-        PostListForm postListForm = PostListForm.builder()
-                .postList(postList)
-                .totalPage(totalPage)
-                .build();
-
-        stopWatch.stop();
-        log.info("=============================================");
-        log.info("조건: Type={}, Page={}", "FREE", page);
-        log.info("조회 건수: {}개", postList.size());
-        log.info("걸린 시간: {} ms ({} 초)",
-                stopWatch.getTotalTimeMillis(),
-                stopWatch.getTotalTimeSeconds());
-        log.info("=============================================");
-
-        return ResponseEntity.status(HttpStatus.OK).body(postListForm);
+        return ResponseEntity.status(HttpStatus.OK).body(postList);
     }
 
     @GetMapping("/view/{postId}")
@@ -241,42 +165,9 @@ public class PostController {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
-        Post postDetail = postService.findById(postId);
-        if (postDetail.getPhoto().isEmpty()) {
-            PostWithNickName postDto = PostWithNickName.builder()
-                    .content(postDetail.getContent())
-                    .title(postDetail.getTitle())
-                    .price(Integer.toString(postDetail.getPrice()))
-                    .tradeStatus(postDetail.getTradeStatus())
-                    .postType(postDetail.getPostType())
-                    .nickname(postDetail.getUser().getNickname())
-                    .build();
-            String detailJson = gson.toJson(postDto);
+        PostResponse postResponse = toPostResponse(postService.findById(postId));
 
-            return ResponseEntity.status(HttpStatus.OK).body(detailJson);
-        }
-        int size = postDetail.getPhoto().size();
-        List<PhotoDto> photoList = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            PhotoDto photo = PhotoDto.builder()
-                    .photoId(postDetail.getPhoto().get(i).getId())
-                    .filePath(postDetail.getPhoto().get(i).getFilePath())
-                    .fileSize(postDetail.getPhoto().get(i).getFileSize())
-                    .origFileName(postDetail.getPhoto().get(i).getOrigFileName())
-                    .build();
-            photoList.add(photo);
-        }
-        PostWithNickName postDto = PostWithNickName.builder()
-                .content(postDetail.getContent())
-                .title(postDetail.getTitle())
-                .postType(postDetail.getPostType())
-                .photo(photoList)
-                .price(Integer.toString(postDetail.getPrice()))
-                .tradeStatus(postDetail.getTradeStatus())
-                .nickname(postDetail.getUser().getNickname())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.OK).body(postDto);
+        return ResponseEntity.status(HttpStatus.OK).body(postResponse);
     }
 
     @DeleteMapping("/delete/{postId}")
@@ -294,45 +185,18 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.OK).body(message);
     }
 
-    @GetMapping("/free/search")
-    public ResponseEntity<String> freeSearch(@RequestParam String keyword, @RequestParam int page) {
+    @GetMapping("/search")
+    public ResponseEntity<?> search(@RequestParam String keyword, @RequestParam int page, @RequestParam Post.PostType type) {
 
         int pageNum = (page - 1) * 10;
-        SearchFreeListForm postList = postService.searchFreePost(keyword, 10, pageNum);
-        int totalPage = postService.countFreePost();
+        List<PostResponse> postList = postService.searchPost(keyword, 10, pageNum, type);
+        int totalPage = postService.countPost(type);
         int countPage = totalPage / 10;
         if (totalPage % 10 > 0)
             countPage += 1;
 
-
-        if (!postList.isActivated())
-            return ResponseEntity.status(HttpStatus.OK).body("결과값이 존재하지 않음");
-
-        postList.setTotalPage(countPage);
-
-        String listJson = gson.toJson(postList);
-
-        return ResponseEntity.status(HttpStatus.OK).body(listJson);
-    }
-
-    @GetMapping("/trade/search")
-    public ResponseEntity<String> tradeSearch(@RequestParam String keyword, @RequestParam int page) {
-
-        int pageNum = (page - 1) * 10;
-        SearchTradeListForm postList = postService.searchTradePost(keyword, 10, pageNum);
-        int totalPage = postService.countFreePost();
-        int countPage = totalPage / 10;
-        if (totalPage % 10 > 0)
-            countPage += 1;
-
-
-        if (!postList.isActivated())
-            return ResponseEntity.status(HttpStatus.OK).body("결과값이 존재하지 않음");
-
-        postList.setTotalPage(countPage);
-
-        String listJson = gson.toJson(postList);
-
-        return ResponseEntity.status(HttpStatus.OK).body(listJson);
+        return ResponseEntity.status(HttpStatus.OK)
+                .header("total-pages", String.valueOf(countPage))
+                .body(postList);
     }
 }

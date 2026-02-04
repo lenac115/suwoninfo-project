@@ -1,4 +1,4 @@
-package com.main.suwoninfo.form;
+package com.main.suwoninfo.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;

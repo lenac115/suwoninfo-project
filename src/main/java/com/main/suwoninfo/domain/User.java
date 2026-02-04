@@ -39,6 +39,13 @@ public class User extends Time {
     //학번
     private Long studentNumber;
 
+    private Auth auth;
+
+    public enum Auth {
+        USER,
+        ADMIN
+    }
+
     @Column(columnDefinition = "boolean default true")
     private boolean activated;
 
@@ -49,17 +56,5 @@ public class User extends Time {
     private List<Comment> commentList = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
-    private List<UserAuthority> userAuthorities = new ArrayList<>();
-
-    @OneToMany(mappedBy = "user")
     private List<Todo> todoList = new ArrayList<>();
-
-
-
-    public void addAuthority(UserAuthority authority) {
-        if (userAuthorities == null) {
-            userAuthorities = new ArrayList<>();
-        }
-        this.userAuthorities.add(authority);
-    }
 }

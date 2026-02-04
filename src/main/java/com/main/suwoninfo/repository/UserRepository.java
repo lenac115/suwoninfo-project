@@ -1,15 +1,12 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.User;
-import com.main.suwoninfo.domain.UserAuthority;
-import com.main.suwoninfo.service.UserService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 
 @Repository
@@ -21,10 +18,6 @@ public class UserRepository {
 
     public void save(User user) {
         entityManager.persist(user);
-    }
-
-    public void authSave(UserAuthority userAuthority) {
-        entityManager.persist(userAuthority);
     }
 
     public Optional<User> findById(Long id) {
@@ -43,17 +36,6 @@ public class UserRepository {
         return entityManager.createQuery("select u from User u where u.nickname = :nickname", User.class)
                 .setParameter("nickname", nickName)
                 .getResultList().stream().findAny();
-    }
-
-    public List<String> findAuthById(String email) {
-        return entityManager.createQuery("select a.authority.name from UserAuthority a where a.user.email = :email", String.class)
-                .setParameter("email", email)
-                .getResultList();
-    }
-
-    public List<User> findAll() {
-        return entityManager.createQuery("select u from User u")
-                .getResultList();
     }
 
     public void delete(User user) {

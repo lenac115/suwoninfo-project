@@ -1,6 +1,7 @@
 package com.main.suwoninfo.service;
 
-import com.main.suwoninfo.dto.UserDto;
+import com.main.suwoninfo.domain.User;
+import com.main.suwoninfo.dto.UserResponse;
 import net.datafaker.Faker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,25 +35,26 @@ public class FakeUserTest {
         String sql = "INSERT INTO user (email, password, name, nickname, student_number, created_time, modified_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         for (int i = 0; i < TOTAL_COUNT; i+=  BATCH_SIZE) {
-            List<UserDto> batchList = new ArrayList<>();
+            List<UserResponse> batchList = new ArrayList<>();
             for (int j = 0; j < BATCH_SIZE; j++) {
-                batchList.add(new UserDto(
-                        faker.internet().emailAddress(),
-                        faker.internet().password(),
-                        faker.name().fullName(),
-                        faker.lorem().word(),
-                        (long) faker.number().numberBetween(1000000, 9999999)
-                ));
+                batchList.add(UserResponse.builder()
+                                .name(faker.name().fullName())
+                                .password(faker.internet().password())
+                                .auth(User.Auth.USER)
+                                .email(faker.internet().emailAddress())
+                                .nickname(faker.lorem().word())
+                                .studentNumber((long) faker.number().numberBetween(1000000, 9999999))
+                        .build());
             }
             jdbcTemplate.batchUpdate(sql,
                     batchList,
                     BATCH_SIZE,
-                    (PreparedStatement ps, UserDto user) -> {
-                        ps.setString(1, user.getEmail());
-                        ps.setString(2, user.getPassword());
-                        ps.setString(3, user.getName());
-                        ps.setString(4, user.getNickname());
-                        ps.setLong(5, user.getStudentNumber());
+                    (PreparedStatement ps, UserResponse user) -> {
+                        ps.setString(1, user.email());
+                        ps.setString(2, user.password());
+                        ps.setString(3, user.name());
+                        ps.setString(4, user.nickname());
+                        ps.setLong(5, user.studentNumber());
                         ps.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
                         ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
                     });

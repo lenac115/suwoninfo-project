@@ -1,7 +1,6 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Todo;
-import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -14,7 +13,6 @@ import java.util.Optional;
 public class TodoRepository {
 
     private final EntityManager entityManager;
-    private final JPAQueryFactory queryFactory;
 
     public List<Todo> findByUser(String email) {
         return entityManager.createQuery("select t from Todo t where t.user.email = :email", Todo.class)

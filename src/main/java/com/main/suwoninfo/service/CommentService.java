@@ -8,7 +8,6 @@ import com.main.suwoninfo.exception.CommentErrorCode;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
-import com.main.suwoninfo.form.CommentWithParent;
 import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.CommentRepository;
 import com.main.suwoninfo.repository.PostRepository;
@@ -22,6 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.main.suwoninfo.utils.ToUtils.toCommentResponse;
+import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
+
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class CommentService {
 
     @Transactional
     @Idempotent(key = "#email")
-    public CommentDto notReplyPost(String email, Long boardId, String detail) {
+    public CommentResponse notReplyPost(String email, Long boardId, String detail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)
@@ -46,7 +48,7 @@ public class CommentService {
         comment.setContent(detail);
 
         commentRepository.save(comment);
-        return CommentDto.builder()
+        return CommentResponse.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .build();
@@ -54,7 +56,7 @@ public class CommentService {
 
     @Transactional
     @Idempotent(key = "#email")
-    public CommentDto replyPost(String email, Long boardId, Long commentId, String detail) {
+    public CommentResponse replyPost(String email, Long boardId, Long commentId, String detail) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Post post = postRepository.findById(boardId)
@@ -70,41 +72,43 @@ public class CommentService {
         comment.addReplyComment(parent);
 
         commentRepository.save(comment);
-        return CommentDto.builder()
+        return CommentResponse.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .build();
     }
 
-    public List<CommentWithParent> findByPaging(Long postId) {
+    public List<CommentResponse> findByPaging(Long postId) {
         List<Comment> comment = commentRepository.findByPaging(postId);
-        List<CommentWithParent> result = new ArrayList<>();
-        Map<Long, CommentWithParent> map = new HashMap<>();
+        List<CommentResponse> result = new ArrayList<>();
+        Map<Long, CommentResponse> map = new HashMap<>();
 
         comment.forEach(c -> {
-            CommentWithParent commentWithParent;
-            if(c.isActivated()) {
-                commentWithParent = CommentWithParent.builder()
-                        .content(c.getContent())
-                        .id(c.getId())
-                        .author(c.getUser().getNickname())
-                        .children(new ArrayList<>())
-                        .build();
-            } else {
-                commentWithParent = CommentWithParent.builder()
-                        .content("삭제된 댓글입니다.")
-                        .id(c.getId())
-                        .author(c.getUser().getNickname())
-                        .children(new ArrayList<>())
-                        .build();
-            }
-                    if(c.getParent() != null){
-                        commentWithParent.setParent(c.getParent().getId());
+                    CommentResponse commentResponse;
+                    if (c.isActivated()) {
+                        commentResponse = CommentResponse.builder()
+                                .content(c.getContent())
+                                .id(c.getId())
+                                .user(toUserResponse(c.getUser()))
+                                .children(new ArrayList<>())
+                                .parent(toCommentResponse(c.getParent()))
+                                .build();
+                    } else {
+                        commentResponse = CommentResponse.builder()
+                                .content("삭제된 댓글입니다.")
+                                .id(c.getId())
+                                .user(toUserResponse(c.getUser()))
+                                .parent(toCommentResponse(c.getParent()))
+                                .children(new ArrayList<>())
+                                .build();
                     }
-                    map.put(commentWithParent.getId(), commentWithParent);
+                    /*if (c.getParent() != null) {
+                        commentResponse.parent(toCommentResponse(c.getParent()));
+                    }*/
+                    map.put(commentResponse.id(), commentResponse);
                     if (c.getParent() != null)
-                        map.get(c.getParent().getId()).getChildren().add(commentWithParent);
-                    else result.add(commentWithParent);
+                        map.get(c.getParent().getId()).children().add(commentResponse);
+                    else result.add(commentResponse);
                 }
         );
         return result;
@@ -120,11 +124,11 @@ public class CommentService {
     public void update(Long commentId, String email, String detail) {
 
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() ->  new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
+                .orElseThrow(() -> new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
 
-        if(comment.getUser().getId() != findUser.getId())
+        if (comment.getUser().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
         comment.setContent(detail);
     }
@@ -132,11 +136,11 @@ public class CommentService {
     @Transactional
     public void delete(Long commentId, String email) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() ->  new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
+                .orElseThrow(() -> new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
 
-        if(comment.getUser().getId() != findUser.getId())
+        if (comment.getUser().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
 
         commentRepository.delete(comment);

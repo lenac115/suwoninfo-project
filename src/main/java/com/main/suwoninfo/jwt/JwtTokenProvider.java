@@ -1,6 +1,6 @@
 package com.main.suwoninfo.jwt;
 
-import com.main.suwoninfo.form.TokenResponse;
+import com.main.suwoninfo.dto.TokenResponse;
 import com.main.suwoninfo.utils.RedisUtils;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;

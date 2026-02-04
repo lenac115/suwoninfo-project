@@ -1,8 +1,6 @@
 package com.main.suwoninfo.service;
 
-import com.main.suwoninfo.domain.PostType;
-import com.main.suwoninfo.domain.TradeStatus;
-import com.main.suwoninfo.dto.PostDto;
+import com.main.suwoninfo.domain.Post;
 import net.datafaker.Faker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +33,8 @@ public class FakePostTest {
         final int TOTAL_COUNT = 1_000_000;
         final int BATCH_SIZE = 1000;
 
-        PostType[] postType = PostType.values();
-        TradeStatus[] tradeStatus = TradeStatus.values();
+        Post.PostType[] postType = Post.PostType.values();
+        Post.TradeStatus[] tradeStatus = Post.TradeStatus.values();
 
         String sql = "INSERT INTO post (user_id, post_type, price, trade_status, title, content, created_time, modified_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 

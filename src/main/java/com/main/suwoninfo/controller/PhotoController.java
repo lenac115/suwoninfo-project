@@ -1,6 +1,6 @@
 package com.main.suwoninfo.controller;
 
-import com.main.suwoninfo.dto.PhotoDto;
+import com.main.suwoninfo.dto.PhotoResponse;
 import com.main.suwoninfo.service.PhotoService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtil;
@@ -31,12 +31,12 @@ public class PhotoController {
             produces = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE})
     public ResponseEntity<byte[]> getImage(@PathVariable Long id) throws IOException {
         //파일 id를 통해 이미지 dto를 받아옴
-        PhotoDto photoDto = photoService.findByFileId(id);
+        PhotoResponse photoDto = photoService.findByFileId(id);
 
         //절대 경로를 설정
         String absolutePath
                 = new File("").getAbsolutePath() + "/";
-        String path = photoDto.getFilePath();
+        String path = photoDto.filePath();
 
         //입력 스트림으로 절대 경로 + 파일경로 입력
         InputStream imageStream = new FileInputStream(absolutePath + path);

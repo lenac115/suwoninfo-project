@@ -1,7 +1,8 @@
 package com.main.suwoninfo.controller;
 
 import com.google.gson.Gson;
-import com.main.suwoninfo.dto.TodoDto;
+import com.main.suwoninfo.dto.TodoRequest;
+import com.main.suwoninfo.dto.TodoResponse;
 import com.main.suwoninfo.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,12 +19,11 @@ import org.springframework.web.bind.annotation.*;
 public class TodoController {
 
     private final TodoService todoService;
-    private final Gson gson;
 
     // 시간표 생성
     @PostMapping("/new")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> createTodo(@RequestBody TodoDto todoDto,
+    public ResponseEntity<?> createTodo(@RequestBody TodoRequest todoDto,
                                         @AuthenticationPrincipal UserDetails user) {
         //TodoDto에 맞춰서 객체를 받아오고 생성
         todoService.createTodo(todoDto, user.getUsername());
@@ -43,7 +43,7 @@ public class TodoController {
     // 시간표 수정
     @PostMapping("/update")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> update(@RequestBody TodoDto todoDto, @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<?> update(@RequestBody TodoResponse todoDto, @AuthenticationPrincipal UserDetails user) {
 
         // 수정할 TodoDto 내용을 받아 수정
         todoService.update(todoDto, user.getUsername());

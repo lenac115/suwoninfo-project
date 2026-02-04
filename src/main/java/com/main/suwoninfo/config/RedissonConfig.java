@@ -22,7 +22,12 @@ public class RedissonConfig {
     public RedissonClient redissonClient() {
         RedissonClient client = null;
         Config config = new Config();
-        config.useSingleServer().setAddress("redis://" + host + ":" + port);
+        config.useSingleServer()
+                .setAddress("redis://" + host + ":" + port)
+                .setConnectTimeout(2000)
+                .setTimeout(1000)
+                .setRetryAttempts(1)
+                .setRetryInterval(1000);
         client = Redisson.create(config);
         return client;
     }

@@ -69,11 +69,4 @@ public class Comment extends Time {
         this.depth = parent.getDepth() + 1;
         this.parent.children.add(this);
     }
-
-    public boolean isActivated(Post post) {
-        if(parent.activated) {
-            return true;
-        }
-        return false;
-    }
 }

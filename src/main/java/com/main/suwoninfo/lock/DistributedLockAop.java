@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.stereotype.Component;
 
@@ -35,8 +36,9 @@ public class DistributedLockAop {
         try {
             boolean available = lock.tryLock(distributedLock.waitTime(), distributedLock.leaseTime(), distributedLock.timeUnit());
             if (!available) {
-                return false;
+                throw new CannotAcquireLockException("락을 획득할 수 없습니다. key=" + key);
             }
+            log.warn("락 획득 진짜 성공! 트랜잭션 시작. key={}", key);
             return aopForTransaction.proceed(pjp);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -45,6 +47,7 @@ public class DistributedLockAop {
             if (lock.isHeldByCurrentThread()) {
                 try {
                     lock.unlock();
+                    log.warn("락 해제 성공");
                 } catch (Exception e) {
                     log.warn("락 해제 실패. method={} key={} msg={}", method.getName(), key, e.getMessage());
                 }

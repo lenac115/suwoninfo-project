@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,9 +34,13 @@ public class CustomUserDetailService implements UserDetailsService {
             throw new CustomException(UserErrorCode.NOT_ACTIVATED_ACCOUNT);
         }
 
-        List<GrantedAuthority> grantedAuthorities = user.getUserAuthorities().stream()
-                .map(authority -> new SimpleGrantedAuthority(authority.getAuthority().getName()))
-                .collect(Collectors.toList());
+        List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+
+        if(user.getAuth() == User.Auth.ADMIN) {
+            grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        } else if(user.getAuth() == User.Auth.USER) {
+            grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        }
 
         return new org.springframework.security.core.userdetails.User(user.getEmail(),
                 user.getPassword(),

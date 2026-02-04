@@ -1,7 +1,6 @@
 package com.main.suwoninfo.controller;
 
 import com.main.suwoninfo.dto.*;
-import com.main.suwoninfo.form.*;
 import com.main.suwoninfo.service.UserService;
 import com.main.suwoninfo.utils.CommonUtils;
 import lombok.RequiredArgsConstructor;
@@ -25,30 +24,30 @@ public class UserController {
 
     //유저 생성
     @PostMapping("/new")
-    public ResponseEntity<?> createUser(@RequestBody UserForm receivedForm) {
+    public ResponseEntity<?> createUser(@RequestBody UserRequest receivedForm) {
 
-        System.out.println(receivedForm.getEmail());
+        System.out.println(receivedForm.email());
         if(CommonUtils.isEmpty(receivedForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
         //유저 정보를 dto화 시켜서 join 실행
-        UserDto createdUser = userService.join(receivedForm);
+        UserResponse createdUser = userService.join(receivedForm);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
     //유저 로그인
     @PostMapping("/login")
-    public ResponseEntity<?> logIn(@RequestBody UserLoginForm receivedLoginForm) {
+    public ResponseEntity<?> logIn(@RequestBody UserRequest receivedLoginForm) {
 
         if(CommonUtils.isEmpty(receivedLoginForm)) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
         //받은 유저 정보를 토대로 토큰 생성
-        TokenResponse tokenResponse = userService.logIn(receivedLoginForm.getEmail(), receivedLoginForm.getPassword());
+        TokenResponse tokenResponse = userService.logIn(receivedLoginForm.email(), receivedLoginForm.password());
 
         return ResponseEntity.status(HttpStatus.OK).body(tokenResponse);
     }
@@ -56,7 +55,7 @@ public class UserController {
     //유저 업데이트
     @PostMapping("/update")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<?> update(@RequestBody UserUpdateForm receivedUpdateForm,
+    public ResponseEntity<?> update(@RequestBody UserRequest receivedUpdateForm,
                                          @AuthenticationPrincipal UserDetails userDetails) {
 
         if(CommonUtils.isEmpty(receivedUpdateForm)) {
@@ -65,8 +64,8 @@ public class UserController {
         }
 
         //받은 정보를 토대로 유저정보 업데이트
-        UserDto findUserDto = userService.update(userService.findByEmail(userDetails.getUsername()).getId(),
-                receivedUpdateForm.getPassword(), receivedUpdateForm.getNickname(), receivedUpdateForm.getStudentNumber());
+        UserResponse findUserDto = userService.update(userService.findByEmail(userDetails.getUsername()).getId(),
+                receivedUpdateForm.password(), receivedUpdateForm.nickname(), receivedUpdateForm.studentNumber());
         return ResponseEntity.status(HttpStatus.OK).body(findUserDto);
     }
 
@@ -84,7 +83,7 @@ public class UserController {
     public ResponseEntity<?> reissue(@RequestBody TokenResponse tokenResponseForm) {
 
         //토큰 재발급, 다만 토큰 유효성 검사 실패시 로그아웃시키고 홈으로 리다이렉트 시킬것
-        TokenResponse tokenRefresh = userService.reissue(tokenResponseForm.getAccessToken(), tokenResponseForm.getRefreshToken());
+        TokenResponse tokenRefresh = userService.reissue(tokenResponseForm.accessToken(), tokenResponseForm.refreshToken());
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(tokenRefresh);
