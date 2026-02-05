@@ -20,6 +20,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
@@ -67,9 +68,9 @@ public class RedisConfig {
     public RedisTemplate<String, Object> generalRedisTemplate(RedisConnectionFactory cf, ObjectMapper objectMapper) {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(cf);
-        redisTemplate.setKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
-        redisTemplate.setHashKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
+        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
         redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
 
         return redisTemplate;
@@ -77,13 +78,7 @@ public class RedisConfig {
 
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory cf) {
-        StringRedisTemplate stringRedisTemplate = new StringRedisTemplate();
-        stringRedisTemplate.setConnectionFactory(cf);
-        stringRedisTemplate.setKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
-        stringRedisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
-        stringRedisTemplate.setHashKeySerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
-        stringRedisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
-        return stringRedisTemplate;
+        return new StringRedisTemplate(cf);
     }
 
     @Bean

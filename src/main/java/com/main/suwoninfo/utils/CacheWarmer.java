@@ -20,7 +20,11 @@ public class CacheWarmer {
         log.info("[Warm-up] 실제 데이터 로딩 시작...");
 
         try {
+            postFacade.findPostList(10, 0, Post.PostType.TRADE);
+            postFacade.findPostList(10, 10, Post.PostType.TRADE);
+            postFacade.findPostList(10, 20, Post.PostType.TRADE);
             postFacade.findPostList(10, 30, Post.PostType.TRADE);
+
 
             log.info("[Warm-up] 끝");
         } catch (Exception e) {

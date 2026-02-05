@@ -36,6 +36,7 @@ public class PostService {
     private final RedisUtils redisUtils;
 
 
+
     @Transactional
     @Idempotent(key = "#userId")
     public PostResponse post(Long userId, PostRequest postReq) {

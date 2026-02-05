@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.utils.RedisUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -32,6 +34,7 @@ import java.util.Map;
 @Aspect
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class IdempotentAspect {
 
     private final RedisUtils redisUtils;
@@ -56,7 +59,7 @@ public class IdempotentAspect {
         String contentStr = eval(ann.content(), ctx);
 
         if (userId == null || userId.isBlank()) {
-            userId = getClientIp();
+            userId = getIdempotentUserId();
         }
         if (idemKey == null || idemKey.isBlank()) throw new IllegalArgumentException("멱등키 미존재");
 
@@ -123,26 +126,62 @@ public class IdempotentAspect {
         return result;
     }
 
-    private String getClientIp() {
+    private String getIdempotentUserId() {
         try {
-            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            ServletRequestAttributes attributes =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
-            if (attributes != null) return "UNKNOWN";
+            if (attributes == null) {
+                log.warn("ServletRequestAttributes 없음");
+                return "UNKNOWN";
+            }
+
             HttpServletRequest request = attributes.getRequest();
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getHeader("Proxy-Client-IP");
-            }
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getHeader("WL-Proxy-Client-IP");
-            }
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getRemoteAddr();
-            }
-            return ip;
+
+            // 세션 ID (항상 존재, 없으면 생성)
+            HttpSession session = request.getSession(true);
+            String sessionId = session.getId();
+
+            // 브라우저 fingerprint 생성
+            String fingerprint = generateBrowserFingerprint(request);
+
+            return "anon:" + sessionId + ":" + fingerprint;
+
         } catch (Exception e) {
-            return "UNKNOWN";
+            log.error("사용자 식별 실패", e);
+            return "UNKNOWN:" + System.currentTimeMillis();
         }
+    }
+
+    private String generateBrowserFingerprint(HttpServletRequest request) {
+
+        StringBuilder sb = new StringBuilder();
+
+        // User-Agent
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent != null && !userAgent.isBlank()) {
+            sb.append(userAgent);
+        }
+
+        // Accept-Language
+        String acceptLang = request.getHeader("Accept-Language");
+        if (acceptLang != null && !acceptLang.isBlank()) {
+            sb.append("|").append(acceptLang);
+        }
+
+        // Accept-Encoding
+        String acceptEnc = request.getHeader("Accept-Encoding");
+        if (acceptEnc != null && !acceptEnc.isBlank()) {
+            sb.append("|").append(acceptEnc);
+        }
+
+        // 해시화하여 짧게 만들기
+        String combined = sb.toString();
+        if (combined.isBlank()) {
+            return "no-fingerprint";
+        }
+
+        return sha256(combined).substring(0, 12);
     }
 
     private String eval(String spel, EvaluationContext ctx) throws Throwable {
