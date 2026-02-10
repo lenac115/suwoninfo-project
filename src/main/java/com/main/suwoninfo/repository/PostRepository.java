@@ -1,15 +1,13 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
+import com.main.suwoninfo.dto.PostResponse;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -23,6 +21,7 @@ public class PostRepository {
 
     private final EntityManager entityManager;
     private final JPAQueryFactory queryFactory;
+    private final PostStatisticsRepository postStatisticsRepository;
 
     public void post(Post post) {
         entityManager.persist(post);
@@ -47,13 +46,15 @@ public class PostRepository {
 
     public List<Post> findByPaging(int limit, int offset, Post.PostType postType) {
 
-        List<Long> ids = queryFactory.select(post.id)
+        List<Long> ids = queryFactory
+                .select(post.id)
                 .from(post)
                 .where(post.postType.eq(postType))
+                .orderBy(post.createdTime.desc(), post.id.desc())
                 .offset(offset)
                 .limit(limit)
-                .orderBy(post.createdTime.desc(), post.id.desc())
                 .fetch();
+
         if (ids.isEmpty()) {
             return new ArrayList<>();
         }
@@ -68,13 +69,6 @@ public class PostRepository {
 
     public void delete(Post post) {
         entityManager.remove(post);
-    }
-
-    public int countPost(Post.PostType postType) {
-        return Math.toIntExact(queryFactory.select(post.count())
-                .from(post)
-                .where(post.postType.eq(postType))
-                .fetchOne());
     }
 
     public List<Post> findAllById(List<Long> longIds) {

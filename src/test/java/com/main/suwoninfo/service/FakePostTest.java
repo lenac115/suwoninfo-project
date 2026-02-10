@@ -30,7 +30,7 @@ public class FakePostTest {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
 
-        final int TOTAL_COUNT = 1_000_000;
+        final int TOTAL_COUNT = 9_000_000;
         final int BATCH_SIZE = 1000;
 
         Post.PostType[] postType = Post.PostType.values();

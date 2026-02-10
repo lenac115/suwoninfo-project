@@ -64,7 +64,7 @@ public class PostFacade {
 
                 // PER: TTL이 짧게 남았으면 백그라운드 갱신
                 Long ttl = redisUtils.getTtl(idsKey);
-                if (shouldRefreshEarly(ttl, IDS_TTL)) {
+                if (shouldRefreshEarly(ttl)) {
                     log.info("PER 트리거: TTL={}초, 백그라운드 캐시 갱신 시작", ttl);
                     self.asyncRebuild(limit, offset, idsKey, postType);
                 }
@@ -211,7 +211,7 @@ public class PostFacade {
             redisUtils.delete(buildVersionedKey("posts:" + type + ":count"));
             postService.countPost(type);
 
-            // ⭐ DB 조회 (버그 수정: type 파라미터 사용)
+            // DB 조회 (버그 수정: type 파라미터 사용)
             List<Post> posts = postService.findByPaging(limit, offset, type);
             List<PostResponse> postResponses = posts.stream()
                     .map(ToUtils::toPostResponse)
@@ -268,19 +268,24 @@ public class PostFacade {
 
         log.error("CircuitBreaker Open Fallback 실행. 원인: {}", t.getMessage());
 
-        return postService.findPostListTest(limit, offset, type);
+        try {
+            return postService.findByPaging(limit, offset, type).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("DB 연결 실패. 원인: {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /**
      * Probabilistic Early Refresh 판단
      * XFetch 알고리즘 기반
      */
-    private boolean shouldRefreshEarly(Long ttl, Duration maxTtl) {
+    private boolean shouldRefreshEarly(Long ttl) {
         if (ttl == null || ttl <= 0) {
             return false;
         }
 
-        double delta = maxTtl.getSeconds() * PER_DELTA;
+        double delta = PostFacade.IDS_TTL.getSeconds() * PER_DELTA;
         double threshold = delta * PER_BETA * Math.log(ThreadLocalRandom.current().nextDouble());
 
         boolean shouldRefresh = ttl < threshold;

@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @Table(
         name = "post", indexes = {
-        @Index(name = "idx_post_type_created_at", columnList = "postType, createdTime DESC")
+        @Index(name = "idx_post_ids", columnList = "postType, createdTime DESC, post_id DESC")
 }
 )
 @Builder

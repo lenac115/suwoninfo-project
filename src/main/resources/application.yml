@@ -8,14 +8,29 @@ spring:
     password: tmdhkzh77!
 
     hikari:
-      minimum-idle: 50
-      maximum-pool-size: 100
-      connection-timeout: 30000
+      minimum-idle: 20
+      maximum-pool-size: 50
+      connection-timeout: 10000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      idle-timeout: 600000
+      leak-detection-threshold: 30000
+      auto-commit: false
+      connection-test-query: SELECT 1
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: my-group
+      auto-offset-reset: earliest
+      max-poll-records: 500
+    listener:
+      type: batch
 
   jpa:
     hibernate.ddl-auto: update
     properties.hibernate.format_sql: true
-    #properties.hibernate.default_batch_fetch_size: 100
+    properties.hibernate.default_batch_fetch_size: 100
     open-in-view: false
 
   data:
@@ -24,11 +39,11 @@ spring:
       host: localhost
       port: 6379
       password: tmdhkzh77!
-      jedis.pool.min-idle: 10
-      jedis.pool.max-idle: 50
-      jedis.pool.max-active: 50
-      connect-timeout: 2000ms
-      timeout: 1000ms
+      lettuce.pool.min-idle: 1
+      lettuce.pool.max-idle: 8
+      lettuce.pool.max-active: 8
+      connect-timeout: 5000ms
+      timeout: 3000ms
   mvc:
     hiddenmethod:
       filter:
@@ -82,7 +97,7 @@ resilience4j:
       redisLock:
         registerHealthIndicator: true
         slidingWindowType: COUNT_BASED
-        slidingWindowSize: 10
+        slidingWindowSize: 20
         minimumNumberOfCalls: 5
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10s
+        failureRateThreshold: 60
+        waitDurationInOpenState: 5s

@@ -8,6 +8,7 @@ import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
 import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.PostRepository;
+import com.main.suwoninfo.repository.PostStatisticsRepository;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.RedisUtils;
 import com.main.suwoninfo.utils.ToUtils;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -31,6 +33,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final PostStatisticsRepository postStatisticsRepository;
 
     private static final Duration COUNT_TTL = Duration.ofMinutes(5);
     private final RedisUtils redisUtils;
@@ -52,11 +55,13 @@ public class PostService {
                 .build();
         post.setUser(user);
         postRepository.post(post);
+        postStatisticsRepository.findByType(postReq.postType()).addCount();
         return toPostResponse(post);
     }
 
     @Transactional
     public void update(Long postId, Long userId, PostResponse postDto) {
+
         Post findPost = postRepository.findById(postId).orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
         User findUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
         if (findPost.getUser() != findUser)
@@ -67,6 +72,7 @@ public class PostService {
 
     @Transactional
     public void delete(Long postId, String email) {
+
         Post post = findById(postId);
         User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         if (!Objects.equals(post.getUser().getId(), user.getId()))
@@ -84,28 +90,27 @@ public class PostService {
     @CircuitBreaker(name = "redisLock", fallbackMethod = "countFallback")
     public int countPost(Post.PostType postType) {
 
-        Object objCount = redisUtils.stringGet("posts:" + postType + ":count");
-        if (objCount == null) {
-            int count = postRepository.countPost(postType);
-            redisUtils.stringSet("posts:" + postType + ":count", String.valueOf(count), COUNT_TTL);
-            return count;
-        } else {
-            return Integer.parseInt(objCount.toString());
+        String cacheKey = "posts:" + postType + ":count";
+        Object cached = redisUtils.get(cacheKey);
+
+        if (cached != null) {
+            return Integer.parseInt(cached.toString());
         }
+
+        int count = postStatisticsRepository.countPost(postType);
+        redisUtils.stringSet(cacheKey, String.valueOf(count), Duration.ofMinutes(5));
+
+        return count;
     }
 
     public int countFallback(Post.PostType postType, Throwable t) {
         log.error("CircuitBreaker Open Fallback 실행. 원인: {}", t.getMessage());
-        return postRepository.countPost(postType);
+        return postStatisticsRepository.countPost(postType);
     }
 
     public List<PostResponse> searchPost(String keyword, int limit, int offset, Post.PostType postType) {
         List<Post> postList = postRepository.findByTitle(keyword, limit, offset, postType);
         return postList.stream().map(ToUtils::toPostResponse).toList();
-    }
-
-    public List<PostResponse> findPostListTest(int i, int offset, Post.PostType type) {
-        return postRepository.findByPaging(i, offset, type).stream().map(ToUtils::toPostResponse).toList();
     }
 
     public List<Post> findAllById(List<Long> longIds) {

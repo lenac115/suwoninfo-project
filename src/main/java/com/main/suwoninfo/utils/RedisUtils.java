@@ -66,15 +66,27 @@ public class RedisUtils {
     }
 
     public List<Object> multiGet(List<String> postKeys) {
-        return redisTemplate.opsForValue().multiGet(postKeys);
+        if (postKeys == null || postKeys.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                    StringRedisSerializer keySerializer = (StringRedisSerializer) redisTemplate.getKeySerializer();
+
+                    for (String key : postKeys) {
+                        connection.get(keySerializer.serialize(key));
+                    }
+                    return null;
+                }
+        );
     }
+
 
     public Long getTtl(String key) {
         return redisTemplate.getExpire(key, TimeUnit.SECONDS);
     }
 
     public void pipelineSet(Map<String, Object> keyValues, Duration ttl) {
-        RedisSerializer<String> keySerializer = (RedisSerializer<String>) redisTemplate.getKeySerializer();
         RedisSerializer<Object> valueSerializer = (RedisSerializer<Object>) redisTemplate.getValueSerializer();
 
         redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
@@ -84,8 +96,8 @@ public class RedisUtils {
                     byte[] valueBytes = valueSerializer.serialize(value);
 
                     if (valueBytes != null) {
-                        connection.set(keyBytes, valueBytes);
-                        connection.expire(keyBytes, ttl.getSeconds());
+                        connection.stringCommands().set(keyBytes, valueBytes);
+                        connection.keyCommands().expire(keyBytes, ttl.getSeconds());
                     }
                 } catch (Exception e) {
                     // 파이프라인 내에서는 예외를 던지지 않고 로깅만

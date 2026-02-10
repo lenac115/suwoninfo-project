@@ -1,6 +1,5 @@
 package com.main.suwoninfo.controller;
 
-import com.google.gson.Gson;
 import com.main.suwoninfo.domain.Photo;
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.domain.User;
@@ -39,7 +38,6 @@ public class PostController {
     private final PostFacade postFacade;
     private final UserService userService;
     private final PhotoService photoService;
-    private final Gson gson;
 
     private static final int PAGE_SIZE = 10;
 
@@ -104,40 +102,6 @@ public class PostController {
         int offset = pageIndex * PAGE_SIZE;
 
         List<PostResponse> postList = postFacade.findPostList(10, offset, type);
-        int totalCount = postService.countPost(type);
-        //int totalCount = postService.countTradePost();
-        int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
-
-        if (totalPage == 0 || pageIndex >= totalPage) {
-            return ResponseEntity.ok(null);
-        }
-
-        stopWatch.stop();
-        log.info("=============================================");
-        log.info("조건: Type={}, Page={}", "TRADE", page);
-        log.info("조회 건수: {}개", postList.size());
-        log.info("걸린 시간: {} ms ({} 초)",
-                stopWatch.getTotalTimeMillis(),
-                stopWatch.getTotalTimeSeconds());
-        log.info("=============================================");
-
-        return ResponseEntity.status(HttpStatus.OK).body(postList);
-    }
-
-    @GetMapping("/list/test")
-    public ResponseEntity<?> joinListTest(@RequestParam(defaultValue = "1") Integer page, @RequestParam Post.PostType type) {
-
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-        if (page == null) {
-            String message = "빈 객체 반환";
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
-        }
-
-        int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
-
-        List<PostResponse> postList = postService.findPostListTest(10, offset, type);
         int totalCount = postService.countPost(type);
         //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
