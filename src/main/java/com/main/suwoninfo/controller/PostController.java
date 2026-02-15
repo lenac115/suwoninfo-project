@@ -99,9 +99,8 @@ public class PostController {
         }
 
         int pageIndex = page - 1;
-        int offset = pageIndex * PAGE_SIZE;
 
-        List<PostResponse> postList = postFacade.findPostList(10, offset, type);
+        List<PostResponse> postList = postFacade.findPostList(10, page, type);
         int totalCount = postService.countPost(type);
         //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;

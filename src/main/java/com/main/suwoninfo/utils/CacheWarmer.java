@@ -5,6 +5,10 @@ import com.main.suwoninfo.service.PostFacade;
 import com.main.suwoninfo.service.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -14,8 +18,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CacheWarmer {
 
-    private final PostFacade postFacade;
     private final PostService postService;
+
+    private final JobLauncher jobLauncher;
+    private final Job paginationCacheJob;
 
     @EventListener(ApplicationReadyEvent.class) // 서버 뜰 때 실행
     public void warmUp() {
@@ -24,10 +30,22 @@ public class CacheWarmer {
         try {
             postService.countPost(Post.PostType.FREE);
             postService.countPost(Post.PostType.TRADE);
-            postFacade.findPostList(10, 0, Post.PostType.TRADE);
-            postFacade.findPostList(10, 10, Post.PostType.TRADE);
-            postFacade.findPostList(10, 20, Post.PostType.TRADE);
-            postFacade.findPostList(10, 30, Post.PostType.TRADE);
+
+            JobParameters freeJobParameters = new JobParametersBuilder()
+                    .addLong("runTime", System.currentTimeMillis())
+                    .addString("post_type", "FREE")
+                    .addString("trigger", "WARM_UP") // 스케줄러 실행과 구분하기 위한 이정표
+                    .toJobParameters();
+
+            JobParameters tradeJobParameters = new JobParametersBuilder()
+                    .addLong("runTime", System.currentTimeMillis())
+                    .addString("post_type", "TRADE")
+                    .addString("trigger", "WARM_UP") // 스케줄러 실행과 구분하기 위한 이정표
+                    .toJobParameters();
+
+            // 배치 수동 실행
+            jobLauncher.run(paginationCacheJob, freeJobParameters);
+            jobLauncher.run(paginationCacheJob, tradeJobParameters);
 
 
             log.info("[Warm-up] 끝");

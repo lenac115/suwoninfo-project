@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @Table(
         name = "post", indexes = {
-        @Index(name = "idx_post_ids", columnList = "postType, createdTime DESC, post_id DESC")
+        @Index(name = "idx_post_ids", columnList = "postType, post_id DESC")
 }
 )
 @Builder
@@ -28,6 +28,7 @@ public class Post extends Time {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     private PostType postType;
 
     private int price;

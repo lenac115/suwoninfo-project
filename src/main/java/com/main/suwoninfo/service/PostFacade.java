@@ -3,10 +3,9 @@ package com.main.suwoninfo.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.dto.PostResponse;
-import com.main.suwoninfo.lock.DistributedLock;
+import com.main.suwoninfo.repository.LockRepository;
 import com.main.suwoninfo.utils.RedisUtils;
 import com.main.suwoninfo.utils.ToUtils;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +39,7 @@ public class PostFacade {
     private final RedisUtils redisUtils;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final LockRepository lockRepository;
 
 
     @Autowired
@@ -49,13 +49,16 @@ public class PostFacade {
     /**
      * 게시글 목록 조회 (메인 메서드)
      */
-    @CircuitBreaker(name = "redisLock", fallbackMethod = "findFallback")
     public List<PostResponse> findPostList(int limit, int offset, Post.PostType postType) {
         Timer.Sample sample = Timer.start(meterRegistry);
 
         try {
-            int pageIndex = offset / Math.max(limit, 1);
-            String idsKey = buildVersionedIdsKey(postType, pageIndex, limit);
+            //int pageIndex = offset / Math.max(limit, 1);
+            int mileStoneIndex = ((offset - 1) / 100) * 100 + 1;
+
+            int pageId = Integer.parseInt(redisUtils.stringGet(postType + "_page:" + mileStoneIndex));
+            int pagingOffset = (offset - mileStoneIndex) * 10;
+            String idsKey = buildVersionedIdsKey(postType, mileStoneIndex, limit);
 
             List<String> idStrs = redisUtils.listSet(idsKey, 0, -1);
 
@@ -66,15 +69,15 @@ public class PostFacade {
                 Long ttl = redisUtils.getTtl(idsKey);
                 if (shouldRefreshEarly(ttl)) {
                     log.info("PER 트리거: TTL={}초, 백그라운드 캐시 갱신 시작", ttl);
-                    self.asyncRebuild(limit, offset, idsKey, postType);
+                    self.asyncRebuild(limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
                 }
 
-                return handleCachedIds(idStrs, limit, offset, idsKey, postType);
+                return handleCachedIds(idStrs, limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
             }
 
             // Cache miss: 동기 재구성
             recordCacheAttempt(postType, "ids_miss");
-            return self.rebuildFindWithLock(limit, offset, idsKey, postType);
+            return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
 
         } finally {
             sample.stop(Timer.builder("api.posts.list")
@@ -86,8 +89,8 @@ public class PostFacade {
     /**
      * 캐시된 ID 목록 처리
      */
-    private List<PostResponse> handleCachedIds(List<String> idStrs, int limit, int offset,
-                                               String idsKey, Post.PostType postType) {
+    private List<PostResponse> handleCachedIds(List<String> idStrs, int limit, int pageId,
+                                               String idsKey, Post.PostType postType, int pagingOffset, int mileStoneIndex) {
         List<String> postKeys = idStrs.stream()
                 .map(this::buildVersionedPostKey)
                 .collect(Collectors.toList());
@@ -107,26 +110,26 @@ public class PostFacade {
 
         if (missingIds.isEmpty()) {
             log.warn("캐시 데이터 불일치 감지. 재구성 필요: {}", idsKey);
-            return self.rebuildFindWithLock(limit, offset, idsKey, postType);
+            return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
         }
 
         // 소수 누락: 보충
         if (missingIds.size() <= MISSING_THRESHOLD) {
             recordCacheAttempt(postType, "partial_hit");
-            return repairMissingPosts(idStrs, missingIds, idsKey, limit, offset, postType);
+            return repairMissingPosts(idStrs, missingIds, idsKey, limit, pageId, postType, pagingOffset, mileStoneIndex);
         }
 
         // 다수 누락: 재구성
         recordCacheAttempt(postType, "too_many_missing");
-        return self.rebuildFindWithLock(limit, offset, idsKey, postType);
+        return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
     }
 
     /**
      * 누락된 게시글 보충
      */
     private List<PostResponse> repairMissingPosts(List<String> allIds, List<String> missingIds,
-                                                  String idsKey, int limit, int offset,
-                                                  Post.PostType postType) {
+                                                  String idsKey, int limit, int pageId,
+                                                  Post.PostType postType, int pagingOffset, int mileStoneIndex) {
         Timer.Sample sample = Timer.start(meterRegistry);
 
         try {
@@ -140,7 +143,7 @@ public class PostFacade {
             if (missingPosts.size() < longIds.size()) {
                 log.warn("삭제된 게시글 감지. 캐시 재구성: {}", idsKey);
                 redisUtils.expire(idsKey, Duration.ofSeconds(10));
-                return self.rebuildFindWithLock(limit, offset, idsKey, postType);
+                return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset, mileStoneIndex);
             }
 
             // 누락된 게시글만 캐싱 (파이프라인 사용)
@@ -179,18 +182,23 @@ public class PostFacade {
     }
 
     /**
-     * 캐시 재구성 (분산 락 사용)
+     * 캐시 재구성
      */
-    @DistributedLock(
-            key = "'posts:rebuild:' + #type + ':page:' + #offset / #limit",
-            waitTime = 5L,
-            leaseTime = 10L
-    )
-    public List<PostResponse> rebuildFindWithLock(int limit, int offset, String idsKey, Post.PostType type) {
+    public List<PostResponse> rebuildFindWithLock(int limit, int pageId, String idsKey, Post.PostType type, int pagingOffset, int mileStoneOffset) {
         Timer.Sample sample = Timer.start(meterRegistry);
 
+        String lockKey = "cache:rebuild:" + type + ":page:" + mileStoneOffset;
+
         try {
-            log.info("캐시 재구성 시작: type={}, limit={}, offset={}", type, limit, offset);
+            log.info("캐시 재구성 시작: type={}, limit={}, offset={}", type, limit, pageId + pagingOffset);
+            Boolean lockAcquired = lockRepository.getLock(lockKey, 30);
+
+            if (!lockAcquired) {
+                log.warn("락 획득 실패. 캐시된 데이터 반환 시도: {}", lockKey);
+                // 락 획득 실패 시 기존 캐시 반환 또는 fallback
+                return handleLockFailure(limit, pageId, idsKey, type, pagingOffset, mileStoneOffset);
+            }
+
 
             // Double-check
             List<String> existing = redisUtils.listSet(idsKey, 0, -1);
@@ -212,10 +220,7 @@ public class PostFacade {
             postService.countPost(type);
 
             // DB 조회 (버그 수정: type 파라미터 사용)
-            List<Post> posts = postService.findByPaging(limit, offset, type);
-            List<PostResponse> postResponses = posts.stream()
-                    .map(ToUtils::toPostResponse)
-                    .collect(Collectors.toList());
+            List<PostResponse> postResponses = postService.findByPaging(limit, pageId, type, pagingOffset);
 
             // 개별 게시글 캐싱 (파이프라인 사용)
             Map<String, Object> toCache = new HashMap<>();
@@ -242,10 +247,16 @@ public class PostFacade {
             recordCacheAttempt(type, "rebuild_success");
             return postResponses;
 
+        } catch (Exception e) {
+            log.error("캐시 재구성 중 오류 발생", e);
+            throw e;
         } finally {
-            sample.stop(Timer.builder("cache.rebuild")
-                    .tag("type", type.toString())
-                    .register(meterRegistry));
+            Boolean released = lockRepository.releaseLock(lockKey);
+            if (released) {
+                log.info("네임드 락 해제 성공: {}", lockKey);
+            } else {
+                log.warn("네임드 락 해제 실패: {}", lockKey);
+            }
         }
     }
 
@@ -253,9 +264,9 @@ public class PostFacade {
      * 비동기 캐시 갱신 (PER용)
      */
     @Async
-    public void asyncRebuild(int limit, int offset, String idsKey, Post.PostType type) {
+    public void asyncRebuild(int limit, int offset, String idsKey, Post.PostType type, int pagingOffset, int mileStoneIndex) {
         try {
-            self.rebuildFindWithLock(limit, offset, idsKey, type);
+            self.rebuildFindWithLock(limit, offset, idsKey, type, pagingOffset, mileStoneIndex);
             recordCacheAttempt(type, "per_refresh_success");
         } catch (Exception e) {
             log.warn("비동기 캐시 갱신 실패: type={}, offset={}", type, offset, e);
@@ -264,7 +275,26 @@ public class PostFacade {
     }
 
 
-    public List<PostResponse> findFallback(int limit, int offset, Post.PostType type, Throwable t) {
+    // 락 획득 실패 시 처리
+    private List<PostResponse> handleLockFailure(int limit, int offset, String idsKey, Post.PostType type, int pagingOffset, int mileStoneOffset) {
+        // 잠시 대기 후 캐시 재확인
+        try {
+            Thread.sleep(100);
+            List<String> ids = redisUtils.listSet(idsKey, 0, -1);
+            if (ids != null && !ids.isEmpty()) {
+                return handleCachedIds(ids, limit, offset, idsKey, type, pagingOffset, mileStoneOffset);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 캐시가 여전히 없으면 DB 직접 조회
+        log.warn("락 대기 타임아웃. DB 직접 조회로 fallback");
+        return postService.findByPaging(limit, offset, type, pagingOffset);
+    }
+
+
+    /*public List<PostResponse> findFallback(int limit, int offset, Post.PostType type, Throwable t) {
 
         log.error("CircuitBreaker Open Fallback 실행. 원인: {}", t.getMessage());
 
@@ -274,7 +304,7 @@ public class PostFacade {
             log.error("DB 연결 실패. 원인: {}", e.getMessage());
             return Collections.emptyList();
         }
-    }
+    }*/
 
     /**
      * Probabilistic Early Refresh 판단
@@ -307,9 +337,9 @@ public class PostFacade {
         return missing;
     }
 
-    private String buildVersionedIdsKey(Post.PostType type, int pageIndex, int limit) {
+    private String buildVersionedIdsKey(Post.PostType type, int mileStoneIndex, int limit) {
         return buildVersionedKey(
-                String.format("posts:ids:%s:page:%d:size:%d", type, pageIndex, limit)
+                String.format("posts:ids:%s:page:%d:size:%d", type, mileStoneIndex, limit)
         );
     }
 

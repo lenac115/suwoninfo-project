@@ -1,7 +1,7 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.dto.PostResponse;
+import com.main.suwoninfo.domain.PostStatistics;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +67,18 @@ public class PostRepository {
                 .fetch();
     }
 
+    public List<Post> findByCursorPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {
+
+        return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
+                .where(post.postType.eq(postType),
+                        (post.id.loe(mileStoneOffset)))
+                .orderBy(post.id.desc())
+                .limit(limit)
+                .offset(pagingOffset)
+                .fetch();
+    }
+
     public void delete(Post post) {
         entityManager.remove(post);
     }
@@ -85,6 +97,19 @@ public class PostRepository {
             if (p != null) result.add(p);
         }
         return result;
+    }
+
+    public int countPost(Post.PostType postType) {
+        int count = queryFactory.select(post.count())
+                .from(post)
+                .where(post.postType.eq(postType))
+                .fetchOne().intValue();
+
+        entityManager.persist(PostStatistics.builder()
+                .count(count)
+                .postType(postType)
+                .build());
+        return count;
     }
 }
 

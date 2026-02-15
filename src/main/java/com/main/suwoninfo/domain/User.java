@@ -39,6 +39,7 @@ public class User extends Time {
     //학번
     private Long studentNumber;
 
+    @Enumerated(EnumType.STRING)
     private Auth auth;
 
     public enum Auth {

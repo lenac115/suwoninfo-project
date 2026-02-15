@@ -6,7 +6,6 @@ spring:
     url: jdbc:mysql://localhost:3306/memberdb2?characterEncoding=UTF-8&serverTimezone=UTC
     username: root
     password: tmdhkzh77!
-
     hikari:
       minimum-idle: 20
       maximum-pool-size: 50
@@ -18,14 +17,11 @@ spring:
       auto-commit: false
       connection-test-query: SELECT 1
 
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: my-group
-      auto-offset-reset: earliest
-      max-poll-records: 500
-    listener:
-      type: batch
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
 
   jpa:
     hibernate.ddl-auto: update

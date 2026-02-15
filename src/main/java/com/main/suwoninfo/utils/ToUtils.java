@@ -4,7 +4,9 @@ import com.main.suwoninfo.domain.*;
 import com.main.suwoninfo.dto.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class ToUtils {
 
@@ -16,7 +18,9 @@ public class ToUtils {
                 .price(p.getPrice())
                 .title(p.getTitle())
                 .tradeStatus(p.getTradeStatus())
-                .photos(p.getPhoto().stream().map(ToUtils::toPhotoResponse).toList())
+                .photos(p.getPhoto().stream()
+                        .map(ToUtils::toPhotoResponse)
+                        .toList())
                 .build();
     }
 

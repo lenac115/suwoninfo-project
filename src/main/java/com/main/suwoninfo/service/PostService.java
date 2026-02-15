@@ -12,16 +12,15 @@ import com.main.suwoninfo.repository.PostStatisticsRepository;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.RedisUtils;
 import com.main.suwoninfo.utils.ToUtils;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.main.suwoninfo.utils.ToUtils.toPostResponse;
 
@@ -87,7 +86,7 @@ public class PostService {
         return postRepository.findById(id).orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
     }
 
-    @CircuitBreaker(name = "redisLock", fallbackMethod = "countFallback")
+    @Transactional
     public int countPost(Post.PostType postType) {
 
         String cacheKey = "posts:" + postType + ":count";
@@ -103,10 +102,11 @@ public class PostService {
         return count;
     }
 
+    /*@Transactional
     public int countFallback(Post.PostType postType, Throwable t) {
         log.error("CircuitBreaker Open Fallback 실행. 원인: {}", t.getMessage());
-        return postStatisticsRepository.countPost(postType);
-    }
+        return postRepository.countPost(postType);
+    }*/
 
     public List<PostResponse> searchPost(String keyword, int limit, int offset, Post.PostType postType) {
         List<Post> postList = postRepository.findByTitle(keyword, limit, offset, postType);
@@ -117,8 +117,9 @@ public class PostService {
         return postRepository.findAllById(longIds);
     }
 
-    public List<Post> findByPaging(int limit, int offset, Post.PostType postType) {
-        return  postRepository.findByPaging(limit, offset, postType);
+    public List<PostResponse> findByPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {
+        log.info("limit {}, mileStoneOffset {}, postType {}, pagingOffset {}", limit, mileStoneOffset, postType, pagingOffset);
+        return postRepository.findByCursorPaging(limit, mileStoneOffset, postType, pagingOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
     }
 }
 

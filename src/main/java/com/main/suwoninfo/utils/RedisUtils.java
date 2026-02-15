@@ -74,7 +74,7 @@ public class RedisUtils {
                     StringRedisSerializer keySerializer = (StringRedisSerializer) redisTemplate.getKeySerializer();
 
                     for (String key : postKeys) {
-                        connection.get(keySerializer.serialize(key));
+                        connection.stringCommands().get(keySerializer.serialize(key));
                     }
                     return null;
                 }
@@ -141,7 +141,7 @@ public class RedisUtils {
         stringRedisTemplate.opsForList().rightPushAll(key, list);
     }
 
-    public Object stringGet(String key) {
+    public String stringGet(String key) {
         return stringRedisTemplate.opsForValue().get(key);
     }
 
