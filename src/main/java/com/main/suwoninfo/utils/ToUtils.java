@@ -18,7 +18,7 @@ public class ToUtils {
                 .price(p.getPrice())
                 .title(p.getTitle())
                 .tradeStatus(p.getTradeStatus())
-                .photos(p.getPhoto().stream()
+                .photos(p.getPhoto() == null ? Collections.emptyList() : p.getPhoto().stream()
                         .map(ToUtils::toPhotoResponse)
                         .toList())
                 .build();

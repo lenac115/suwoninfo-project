@@ -1,7 +1,6 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.domain.PostStatistics;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +10,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.main.suwoninfo.domain.QPhoto.photo;
 import static com.main.suwoninfo.domain.QPost.post;
 import static com.main.suwoninfo.domain.QUser.user;
 
@@ -21,7 +19,6 @@ public class PostRepository {
 
     private final EntityManager entityManager;
     private final JPAQueryFactory queryFactory;
-    private final PostStatisticsRepository postStatisticsRepository;
 
     public void post(Post post) {
         entityManager.persist(post);
@@ -41,29 +38,6 @@ public class PostRepository {
                 .offset(offset)
                 .limit(limit)
                 .orderBy(post.id.desc())
-                .fetch();
-    }
-
-    public List<Post> findByPaging(int limit, int offset, Post.PostType postType) {
-
-        List<Long> ids = queryFactory
-                .select(post.id)
-                .from(post)
-                .where(post.postType.eq(postType))
-                .orderBy(post.createdTime.desc(), post.id.desc())
-                .offset(offset)
-                .limit(limit)
-                .fetch();
-
-        if (ids.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
-                .leftJoin(post.photo, photo).fetchJoin()
-                .where(post.id.in(ids))
-                .orderBy(post.createdTime.desc(), post.id.desc())
                 .fetch();
     }
 
@@ -99,17 +73,15 @@ public class PostRepository {
         return result;
     }
 
-    public int countPost(Post.PostType postType) {
-        int count = queryFactory.select(post.count())
-                .from(post)
-                .where(post.postType.eq(postType))
-                .fetchOne().intValue();
+    public List<Post> findAbsolutePaging(int limit, Post.PostType postType, int absoluteOffset) {
 
-        entityManager.persist(PostStatistics.builder()
-                .count(count)
-                .postType(postType)
-                .build());
-        return count;
+        return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
+                .where(post.postType.eq(postType))
+                .orderBy(post.id.desc())
+                .limit(limit)
+                .offset(absoluteOffset)
+                .fetch();
     }
 }
 

@@ -34,7 +34,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final PostStatisticsRepository postStatisticsRepository;
 
-    private static final Duration COUNT_TTL = Duration.ofMinutes(5);
+    private static final String CACHE_VERSION = "v1";
     private final RedisUtils redisUtils;
 
 
@@ -54,7 +54,9 @@ public class PostService {
                 .build();
         post.setUser(user);
         postRepository.post(post);
-        postStatisticsRepository.findByType(postReq.postType()).addCount();
+        PostStatistics postStatistics = postStatisticsRepository.findByType(postReq.postType());
+        postStatistics.addCount();
+        redisUtils.increment("new_" + post.getPostType() + "_posts_count");
         return toPostResponse(post);
     }
 
@@ -76,6 +78,9 @@ public class PostService {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         if (!Objects.equals(post.getUser().getId(), user.getId()))
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
+        PostStatistics postStatistics = postStatisticsRepository.findByType(post.getPostType());
+        postStatistics.minusCount();
+        redisUtils.zSetSet("deleted:post:ids:" + post.getPostType(), postId);
         postRepository.delete(post);
         for (int i = 0; i < post.getComment().size(); i++) {
             post.getComment().get(i).setActivated(false);
@@ -90,7 +95,7 @@ public class PostService {
     public int countPost(Post.PostType postType) {
 
         String cacheKey = "posts:" + postType + ":count";
-        Object cached = redisUtils.get(cacheKey);
+        Object cached = redisUtils.get(redisUtils.versionedKey(CACHE_VERSION, cacheKey));
 
         if (cached != null) {
             return Integer.parseInt(cached.toString());
@@ -101,12 +106,6 @@ public class PostService {
 
         return count;
     }
-
-    /*@Transactional
-    public int countFallback(Post.PostType postType, Throwable t) {
-        log.error("CircuitBreaker Open Fallback 실행. 원인: {}", t.getMessage());
-        return postRepository.countPost(postType);
-    }*/
 
     public List<PostResponse> searchPost(String keyword, int limit, int offset, Post.PostType postType) {
         List<Post> postList = postRepository.findByTitle(keyword, limit, offset, postType);
@@ -119,7 +118,13 @@ public class PostService {
 
     public List<PostResponse> findByPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {
         log.info("limit {}, mileStoneOffset {}, postType {}, pagingOffset {}", limit, mileStoneOffset, postType, pagingOffset);
+
         return postRepository.findByCursorPaging(limit, mileStoneOffset, postType, pagingOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
+    }
+
+    public List<PostResponse> findAbsolutePaging(int limit, Post.PostType postType, int absoluteOffset) {
+
+        return postRepository.findAbsolutePaging(limit, postType, absoluteOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
     }
 }
 

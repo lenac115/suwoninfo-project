@@ -186,7 +186,7 @@ public class IdempotentAspect {
 
     private String eval(String spel, EvaluationContext ctx) throws Throwable {
         if (spel == null || spel.isBlank()) return "";
-        return String.valueOf(new SpelExpressionParser().parseExpression(spel).getValue(ctx));
+        return new SpelExpressionParser().parseExpression(spel).getValue(ctx, String.class);
     }
 
     private String canonicalize(String content) {

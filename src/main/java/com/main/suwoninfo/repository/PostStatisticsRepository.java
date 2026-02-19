@@ -3,7 +3,6 @@ package com.main.suwoninfo.repository;
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.domain.PostStatistics;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +14,6 @@ import static com.main.suwoninfo.domain.QPostStatistics.postStatistics;
 public class PostStatisticsRepository {
 
     private final JPAQueryFactory queryFactory;
-    private final EntityManager entityManager;
 
     public Integer countPost(Post.PostType postType) {
 

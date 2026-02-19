@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Builder
@@ -17,7 +18,7 @@ public class PostStatistics {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull
+    @NotNull @ColumnDefault("0")
     private int count;
 
     @NotNull
@@ -27,5 +28,9 @@ public class PostStatistics {
 
     public void addCount() {
         this.count++;
+    }
+
+    public void minusCount() {
+        this.count--;
     }
 }

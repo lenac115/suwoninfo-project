@@ -90,7 +90,7 @@ management:
 resilience4j:
   circuitbreaker:
     instances:
-      redisLock:
+      redisDown:
         registerHealthIndicator: true
         slidingWindowType: COUNT_BASED
         slidingWindowSize: 20

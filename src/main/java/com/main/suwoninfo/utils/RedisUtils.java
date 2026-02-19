@@ -28,6 +28,14 @@ public class RedisUtils {
         redisTemplate.opsForValue().set(key, o, minutes);
     }
 
+    public void increment(String key) {
+        stringRedisTemplate.opsForValue().increment(key);
+    }
+
+    public void decrement(String key) {
+        stringRedisTemplate.opsForValue().decrement(key);
+    }
+
     public Boolean setIfAbsent(String key, Object o, Duration seconds) {
         return redisTemplate.opsForValue().setIfAbsent(key, o, seconds);
     }
@@ -119,6 +127,14 @@ public class RedisUtils {
         return version + ":" + key;
     }
 
+    public void zSetSet(String key, Long o) {
+        stringRedisTemplate.opsForZSet().add(key, String.valueOf(o), o);
+    }
+
+    public Long zSetGetCount(String key, Long min, Long max) {
+        return stringRedisTemplate.opsForZSet().count(key, min, max);
+    }
+
 
     public void invalidateVersion(String version) {
         List<String> keysToDelete = keys(version + ":*");
@@ -136,6 +152,10 @@ public class RedisUtils {
         stringRedisTemplate.opsForValue().set(key, value, minutes);
     }
 
+    public void stringSet(String key, String value) {
+        stringRedisTemplate.opsForValue().set(key, value);
+    }
+
 
     public void listRightPush(String key, List<String> list) {
         stringRedisTemplate.opsForList().rightPushAll(key, list);
@@ -149,5 +169,9 @@ public class RedisUtils {
         return stringRedisTemplate.keys(pattern)
                 .stream()
                 .toList();
+    }
+
+    public void zSetDelete(String s) {
+        stringRedisTemplate.opsForZSet().remove(s);
     }
 }

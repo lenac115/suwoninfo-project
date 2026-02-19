@@ -89,7 +89,7 @@ public class PostController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<?> joinList(@RequestParam(defaultValue = "1") Integer page, @RequestParam Post.PostType type) {
+    public ResponseEntity<?> joinList(@RequestParam(defaultValue = "1") Integer page, @RequestParam Post.PostType type) throws InterruptedException {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
@@ -100,7 +100,7 @@ public class PostController {
 
         int pageIndex = page - 1;
 
-        List<PostResponse> postList = postFacade.findPostList(10, page, type);
+        List<PostResponse> postList = postFacade.findPostList(10, pageIndex, type);
         int totalCount = postService.countPost(type);
         //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
