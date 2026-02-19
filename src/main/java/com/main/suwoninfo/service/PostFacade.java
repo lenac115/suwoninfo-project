@@ -72,7 +72,7 @@ public class PostFacade {
                 calculatedOffset = pagingOffset - newPostsCount + deletedPostsCount;
             }
 
-            if (calculatedOffset < 0) {
+            if (calculatedOffset < 0 && mileStoneIndex <= 1) {
                 int absoluteOffset = (page - 1) * 10;
                 return postService.findAbsolutePaging(limit, postType, absoluteOffset);
             }
