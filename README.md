@@ -5,15 +5,16 @@
 
 
 ## 📌 프로젝트 목표
-+ 개발 기간: 2023.03 ~ 2023.08 (초기 개발) / 2025.08 ~ 2025.12 (성능 개선 및 리팩토링) 
-+ 역할: Backend Developer (기여도 100% - 백엔드 전체 설계 및 구현) 
-+ GitHub: https://github.com/lenac115/suwoninfo-project
++ 개발 기간 : 2023.03 ~ 2023.08 (초기 개발) / 2025.08 ~ 2025.12 (성능 개선 및 리팩토링) 
++ 역할 : Backend Developer (기여도 100% - 백엔드 전체 설계 및 구현) 
+
+
 
 ## 🛠 사용한 기술
-+ Language & Framework: Java, Spring Boot, Spring MVC, Spring Data JPA 
-+ Security: Spring Security, JWT 
-+ Database & Cache: MySQL, Redis 
-+ Infra & Testing: Docker, JMeter, JUnit5
++ Language & Framework : Java, Spring Boot, Spring MVC, Spring Data JPA 
++ Security : Spring Security, JWT 
++ Database & Cache : MySQL, Redis 
++ Infra & Testing : Docker, JMeter, JUnit5
 
 
 
@@ -55,7 +56,7 @@
 
 
 ## 🛡️ 시스템 가용성(Availability) 및 안정성 확보
-외부 캐시 서버 의존도 증가에 따른 SPOF(단일 장애점) 우려를 해소하고, 초기 트래픽 폭주 시의 병목을 방어했습니다.
+외부 캐시 서버 의존도 증가에 따른 SPOF 우려를 해소하고, 초기 트래픽 폭주 시의 병목을 방어했습니다.
 + Circuit Breaker 패턴 적용 : Redis 서버 장애 시 연쇄적인 시스템 다운을 막기 위해 서킷 브레이커를 도입했습니다. 타임아웃 발생 시 서킷을 Open하여 DB로 Fallback 하거나 딥 페이징의 경우 Fail-Fast 처리하여 메인 DB의 커넥션 풀을 보호했습니다.
 + Cold Start 웜업 : 서버 기동 직후의 트래픽 몰림으로 인한 타임아웃 에러를 방어하기 위해, 서버 실행 시 Spring Batch를 통해 이정표 캐시를 Redis에 세팅하면서 엔진을 웜업하도록 했습니다.
 
