@@ -3,23 +3,29 @@ package com.main.suwoninfo.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.dto.PostResponse;
+import com.main.suwoninfo.redis.RedisConnectedEvent;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
-import com.main.suwoninfo.repository.LockRepository;
 import com.main.suwoninfo.utils.RedisUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -290,7 +296,7 @@ public class PostFacade {
     protected List<PostResponse> handleRedisDown(int limit, int page, Post.PostType postType, Throwable throwable) {
 
         if (page > 10) {
-            log.warn("Redis 장애 상황에서 깊은 페이징 요청 차단: page={}", page);
+            log.warn("Redis 장애 상황에서 깊은 페이징 요청 차단: page={}", page + 1);
             throw new CustomException(PostErrorCode.TOO_DEEP_PAGE);
         }
 

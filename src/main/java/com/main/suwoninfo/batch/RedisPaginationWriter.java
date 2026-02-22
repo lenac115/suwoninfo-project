@@ -38,7 +38,7 @@ public class RedisPaginationWriter implements ItemWriter<Long> {
 
         String redisKey = type + "_page:" + startPageNum;
 
-        log.info("[{}] Saving Redis - Page: {}, CursorID: {}", type, startPageNum, startCursorId);
+        //log.info("[{}] Saving Redis - Page: {}, CursorID: {}", type, startPageNum, startCursorId);
         redisUtils.stringSet(redisKey, String.valueOf(startCursorId), Duration.ofMinutes(1440));
     }
 }

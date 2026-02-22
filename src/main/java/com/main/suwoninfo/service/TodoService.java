@@ -7,7 +7,6 @@ import com.main.suwoninfo.dto.TodoResponse;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.TodoErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
-import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.TodoRepository;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.ToUtils;
@@ -16,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-
-import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +34,6 @@ public class TodoService {
     }
 
     @Transactional
-    @Idempotent(key = "#email")
     public void createTodo(TodoRequest todoDto, String email) {
         Todo todo = Todo.builder()
                 .dayList(todoDto.dayList())

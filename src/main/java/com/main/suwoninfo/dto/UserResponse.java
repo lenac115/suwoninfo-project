@@ -11,5 +11,6 @@ public record UserResponse(
         String nickname,
         String name,
         Long studentNumber,
-        User.Auth auth
+        User.Auth auth,
+        Boolean activated
 ) {}

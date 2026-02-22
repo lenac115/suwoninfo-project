@@ -1,5 +1,6 @@
 package com.main.suwoninfo.config;
 
+import com.main.suwoninfo.jwt.CustomAuthenticationProvider;
 import com.main.suwoninfo.jwt.JwtAuthenticationEntryPoint;
 import com.main.suwoninfo.jwt.JwtSecurityConfig;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
@@ -74,10 +75,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder);
-        return authProvider;
+    public CustomAuthenticationProvider authenticationProvider() {
+        return new CustomAuthenticationProvider(customUserDetailsService, passwordEncoder);
     }
 }

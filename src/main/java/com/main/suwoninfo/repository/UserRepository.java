@@ -1,6 +1,8 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.User;
+import com.querydsl.core.QueryFactory;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -8,12 +10,15 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import static com.main.suwoninfo.domain.QUser.user;
+
 
 @Repository
 @RequiredArgsConstructor
 public class UserRepository {
 
     private final EntityManager entityManager;
+    private final JPAQueryFactory queryFactory;
 
 
     public void save(User user) {
@@ -21,24 +26,20 @@ public class UserRepository {
     }
 
     public Optional<User> findById(Long id) {
-        return entityManager.createQuery("select u from User u where u.id = :id", User.class)
-                .setParameter("id", id)
-                .getResultList().stream().findAny();
+        return queryFactory.selectFrom(user)
+                .where(user.id.eq(id).and(user.activated.eq(true)))
+                .stream().findAny();
     }
 
     public Optional<User> findByEmail(String email) {
-        return entityManager.createQuery("select u from User u where u.email = :email", User.class)
-                .setParameter("email", email)
-                .getResultList().stream().findAny();
+        return queryFactory.selectFrom(user)
+                .where(user.email.eq(email).and(user.activated.eq(true)))
+                .stream().findAny();
     }
 
     public Optional<User> findByNick(String nickName) {
-        return entityManager.createQuery("select u from User u where u.nickname = :nickname", User.class)
-                .setParameter("nickname", nickName)
-                .getResultList().stream().findAny();
-    }
-
-    public void delete(User user) {
-        user.setActivated(false);
+        return queryFactory.selectFrom(user)
+                .where(user.nickname.eq(nickName).and(user.activated.eq(true)))
+                .stream().findAny();
     }
 }

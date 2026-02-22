@@ -3,10 +3,7 @@ package com.main.suwoninfo.utils;
 import com.main.suwoninfo.domain.*;
 import com.main.suwoninfo.dto.*;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
 public class ToUtils {
 
@@ -33,6 +30,7 @@ public class ToUtils {
                 .studentNumber(user.getStudentNumber())
                 .password(user.getPassword())
                 .name(user.getName())
+                .activated(user.isActivated())
                 .build();
     }
 

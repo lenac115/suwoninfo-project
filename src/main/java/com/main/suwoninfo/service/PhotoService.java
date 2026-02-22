@@ -6,7 +6,6 @@ import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PhotoErrorCode;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.dto.PhotoResponse;
-import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.PhotoRepository;
 import com.main.suwoninfo.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,6 @@ public class PhotoService {
     private final FileHandler fileHandler;
 
     @Transactional
-    @Idempotent(key = "#postId")
     public Photo addPhoto(
             Photo photo,
             List<MultipartFile> files,

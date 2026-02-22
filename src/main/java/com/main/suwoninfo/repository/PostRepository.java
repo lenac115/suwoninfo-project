@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.main.suwoninfo.domain.QPhoto.photo;
 import static com.main.suwoninfo.domain.QPost.post;
 import static com.main.suwoninfo.domain.QUser.user;
 
@@ -25,9 +26,11 @@ public class PostRepository {
     }
 
     public Optional<Post> findById(Long postId) {
-        return entityManager.createQuery("select p from Post p where p.id = :id", Post.class)
-                .setParameter("id", postId)
-                .getResultList().stream().findAny();
+        return queryFactory.selectFrom(post)
+                .join(post.user, user).fetchJoin()
+                .leftJoin(post.photo, photo).fetchJoin()
+                .where(post.id.eq(postId))
+                .stream().findAny();
     }
 
     public List<Post> findByTitle(String keyword, int limit, int offset, Post.PostType postType) {

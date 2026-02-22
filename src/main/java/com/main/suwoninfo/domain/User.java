@@ -1,5 +1,7 @@
 package com.main.suwoninfo.domain;
 
+import com.main.suwoninfo.dto.UserRequest;
+import com.main.suwoninfo.dto.UserResponse;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -8,9 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter @Setter
+@Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(name = "user", indexes = {
+        @Index(name = "idx_user_email", columnList = "email, activated")
+})
 @Builder
 public class User extends Time {
 
@@ -41,6 +46,17 @@ public class User extends Time {
 
     @Enumerated(EnumType.STRING)
     private Auth auth;
+
+    public void setActivated(boolean b) {
+        this.activated = b;
+    }
+
+    public User update(UserRequest form) {
+        this.password = form.password();
+        this.name = form.name();
+        this.nickname = form.nickname();
+        return this;
+    }
 
     public enum Auth {
         USER,

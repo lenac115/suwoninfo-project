@@ -1,7 +1,6 @@
-package com.main.suwoninfo.utils;
+package com.main.suwoninfo.redis;
 
 import com.main.suwoninfo.domain.Post;
-import com.main.suwoninfo.service.PostFacade;
 import com.main.suwoninfo.service.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

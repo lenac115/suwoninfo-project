@@ -64,8 +64,7 @@ public class UserController {
         }
 
         //받은 정보를 토대로 유저정보 업데이트
-        UserResponse findUserDto = userService.update(userService.findByEmail(userDetails.getUsername()).getId(),
-                receivedUpdateForm.password(), receivedUpdateForm.nickname(), receivedUpdateForm.studentNumber());
+        UserResponse findUserDto = userService.update(receivedUpdateForm, userDetails);
         return ResponseEntity.status(HttpStatus.OK).body(findUserDto);
     }
 
@@ -100,8 +99,8 @@ public class UserController {
     //유저 삭제
     @DeleteMapping("/delete")
     @PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")
-    public ResponseEntity<?> delete(@AuthenticationPrincipal UserDetails user) {
-        userService.delete(user.getUsername());
+    public ResponseEntity<?> delete(@AuthenticationPrincipal UserDetails user, @AuthenticationPrincipal UserDetails userDetails) {
+        userService.delete(user.getUsername(), userDetails);
         return ResponseEntity.status(HttpStatus.OK).body("회원 삭제 완료");
     }
 }

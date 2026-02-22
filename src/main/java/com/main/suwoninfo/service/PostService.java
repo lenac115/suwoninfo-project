@@ -6,7 +6,6 @@ import com.main.suwoninfo.dto.PostResponse;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
-import com.main.suwoninfo.idempotent.Idempotent;
 import com.main.suwoninfo.repository.PostRepository;
 import com.main.suwoninfo.repository.PostStatisticsRepository;
 import com.main.suwoninfo.repository.UserRepository;
@@ -38,9 +37,7 @@ public class PostService {
     private final RedisUtils redisUtils;
 
 
-
     @Transactional
-    @Idempotent(key = "#userId")
     public PostResponse post(Long userId, PostRequest postReq) {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
@@ -76,15 +73,15 @@ public class PostService {
 
         Post post = findById(postId);
         User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
+
         if (!Objects.equals(post.getUser().getId(), user.getId()))
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
+
         PostStatistics postStatistics = postStatisticsRepository.findByType(post.getPostType());
         postStatistics.minusCount();
+
         redisUtils.zSetSet("deleted:post:ids:" + post.getPostType(), postId);
         postRepository.delete(post);
-        for (int i = 0; i < post.getComment().size(); i++) {
-            post.getComment().get(i).setActivated(false);
-        }
     }
 
     public Post findById(Long id) {

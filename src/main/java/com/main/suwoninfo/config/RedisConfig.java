@@ -3,12 +3,22 @@ package com.main.suwoninfo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.module.blackbird.BlackbirdModule;
+import com.main.suwoninfo.domain.Post;
+import com.main.suwoninfo.redis.RedisConnectedEvent;
 import io.lettuce.core.ClientOptions;
+import io.lettuce.core.event.connection.ConnectionActivatedEvent;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.DefaultClientResources;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -21,6 +31,7 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.scheduling.annotation.Async;
 
 import java.time.Duration;
 
@@ -30,6 +41,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 @Configuration
 @EnableRedisRepositories
+@Slf4j
 public class RedisConfig {
 
     //프로퍼티스에서 설정한 값을 host로 설정
@@ -42,13 +54,13 @@ public class RedisConfig {
 
     //host값과 port값을 configuration에 넣어서 빈에 올림
     @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
+    public RedisConnectionFactory redisConnectionFactory(ClientResources clientResources) {
         LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
                 .clientOptions(ClientOptions.builder()
                         .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)  // 연결이 없으면 바로 명령어 거절
-                        .autoReconnect(false)  // 자동 재연결 비활성화
                         .build())
                 .commandTimeout(Duration.ofSeconds(3))
+                .clientResources(clientResources)
                 .build();
 
         RedisStandaloneConfiguration serverConfig = new RedisStandaloneConfiguration(host, port);
@@ -83,10 +95,30 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(LettuceConnectionFactory cf) {
-        RedisCacheConfiguration cfg =  RedisCacheConfiguration.defaultCacheConfig()
+        RedisCacheConfiguration cfg = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
                 .entryTtl(Duration.ofMinutes(10));
 
         return RedisCacheManager.builder(cf).cacheDefaults(cfg).build();
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ClientResources clientResources(ApplicationEventPublisher eventPublisher) {
+        DefaultClientResources defaultClientResources = DefaultClientResources.create();
+
+        defaultClientResources.eventBus().get().subscribe(event -> {
+                    log.info("Lettuce Event 발생: {}", event.getClass().getSimpleName());
+                    try {
+                        if (event instanceof ConnectionActivatedEvent) {
+                            eventPublisher.publishEvent(new RedisConnectedEvent(this));
+                        }
+                    } catch (Exception e) {
+                        log.error("Spring Event 발행 중 에러 발생! (스트림은 유지됩니다)", e);
+                    }
+                },
+                error -> log.error("EventBus 스트림에서 치명적 에러 발생 (구독 해지됨)", error)
+        );
+
+        return defaultClientResources;
     }
 }

@@ -5,19 +5,20 @@ import com.main.suwoninfo.dto.TokenResponse;
 import com.main.suwoninfo.dto.UserRequest;
 import com.main.suwoninfo.dto.UserResponse;
 import com.main.suwoninfo.exception.*;
-import com.main.suwoninfo.idempotent.Idempotent;
+import com.main.suwoninfo.jwt.CustomAuthenticationProvider;
 import com.main.suwoninfo.jwt.JwtTokenProvider;
 import com.main.suwoninfo.repository.UserRepository;
 import com.main.suwoninfo.utils.RedisUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
@@ -29,13 +30,12 @@ import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
+    private final CustomAuthenticationProvider authenticationProvider;
     private final JwtTokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisUtils redisUtils;
 
     @Transactional
-    @Idempotent(key = "#form.email")
     public UserResponse join(UserRequest form) {
         System.out.println("조인");
         User user = User.builder()
@@ -59,16 +59,16 @@ public class UserService {
     //이메일 중복 검증
     private void validateDuplicateEmail(String email) {
         Optional<User> validEmail = userRepository.findByEmail(email);
-        if(validEmail.isPresent()) {
-            if(validEmail.get().isActivated())
+        if (validEmail.isPresent()) {
+            if (validEmail.get().isActivated())
                 throw new CustomException(UserErrorCode.VALIDATED_EMAIL_ERROR);
         }
     }
 
     private void validateDuplicateNick(String nick) {
         Optional<User> validNick = userRepository.findByNick(nick);
-        if(validNick.isPresent()) {
-            if(validNick.get().isActivated())
+        if (validNick.isPresent()) {
+            if (validNick.get().isActivated())
                 throw new CustomException(UserErrorCode.VALIDATED_NICK_ERROR);
         }
     }
@@ -86,53 +86,38 @@ public class UserService {
 
     //dirty checking을 이용한 update 메소드
     @Transactional
-    public UserResponse update(Long id, String password, String nickName, Long studentNum) {
-        User findUser = userRepository.findById(id).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
+    public UserResponse update(UserRequest form, UserDetails userDetails) {
+        User findUser = userRepository.findByEmail(form.email()).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
 
-        if(password != null) findUser.setPassword(passwordEncoder.encode(password));
-        if(nickName != null) findUser.setNickname(nickName);
-        if(studentNum != null) findUser.setStudentNumber(studentNum);
+        if(!Objects.equals(findUser.getEmail(), userDetails.getUsername())){
+            throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
+        }
+        findUser.update(form);
 
-        return UserResponse.builder()
-                .studentNumber(findUser.getStudentNumber())
-                .name(findUser.getName())
-                .nickname(findUser.getNickname())
-                .email(findUser.getEmail())
-                .password(findUser.getPassword())
-                .build();
+        return toUserResponse(findUser.update(form));
     }
 
     //로그인 메소드
     @Transactional
-    @Idempotent(key = "#email")
     public TokenResponse logIn(String email, String password) {
-
-        User findUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
-
-        if(!findUser.isActivated())
-            throw new CustomException(UserErrorCode.NOT_ACTIVATED_ACCOUNT);
-
-        if(!passwordEncoder.matches(password, findUser.getPassword()))
-            throw new CustomException(UserErrorCode.NOT_CORRECT_PASSWORD);
 
         // 받아온 유저네임과 패스워드를 이용해 UsernamePasswordAuthenticationToken 객체 생성
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(email, password);
         // authenticationToken 객체를 통해 Authentication 객체 생성
         // 이 과정에서 CustomUserDetailsService 에서 재정의한 loadUserByUsername 메서드 호출
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        Authentication authentication = authenticationProvider.authenticate(authenticationToken);
         // 인증 정보를 기준으로 jwt access 토큰 생성
         TokenResponse tokenResponse = tokenProvider.generateToken(authentication);
 
-        redisUtils.set("RT:"+ email, tokenResponse.refreshToken(), Duration.ofMinutes(1440));
+        redisUtils.set("RT:" + email, tokenResponse.refreshToken(), Duration.ofMinutes(1440));
 
         return tokenResponse;
     }
 
     public UserResponse getUserInfo(String email) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() ->  new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         return toUserResponse(user);
     }
 
@@ -171,12 +156,20 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(String email) {
+    public void delete(String email, UserDetails userDetails) {
         User findUser = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EQUAL_EMAIL));
-        findUser.setName("DELETED_USER");
-        findUser.setEmail("DELETED_USER");
-        findUser.setNickname("DELETED_USER");
-        userRepository.delete(findUser);
+                .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
+
+        if(!Objects.equals(findUser.getEmail(), userDetails.getUsername())){
+            throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
+        }
+
+        findUser.update(UserRequest.builder()
+                .name("DELETED_USER")
+                .email("DELETED_USER")
+                .nickname("DELETED_USER")
+                .build());
+
+        findUser.setActivated(false);
     }
 }
