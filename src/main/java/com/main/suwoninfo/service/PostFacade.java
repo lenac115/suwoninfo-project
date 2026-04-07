@@ -53,13 +53,34 @@ public class PostFacade {
     private PostFacade self;
 
     /**
-     * 게시글 목록 조회 (메인 메서드)
+     * 게시글 목록을 페이징 조회한다
+     *
+     * <p>대용량 데이터 환경에서 딥 페이징 성능 저하를 방지하기 위해
+     * Redis 캐시 이정표를 활용하며, 장애 시 DB 직접 조회로 전환됩니다.</p>
+     *
+     * <h4>동작 순서</h4>
+     * <ol>
+     *     <li>요청된 페이지에 해당하는 이정표 커서(100페이지 단위) 계산</li>
+     *     <li>실시간 추가/삭제 보정값을 Redis INCR/ZSET에서 조회</li>
+     *     <li>Redis에서 ID 목록 캐시 조회 (히트시 PER 판단 포함)</li>
+     *     <li>캐시 미스 시 동기 재구성(@link #rebuildFindWithLock)</li>
+     * </ol>
+     *
+     * @param limit     한 페이지에 가져올 게시글 수 ( 기본 값 10 )
+     * @param page      요청 페이지 번호 ( 1에서 시작 )
+     * @param postType  게시글 타입 ( TRADE, FREE 존재 )
+     * @throws InterruptedException 캐시 재구성 중 인터럽트 발생
+     * @throws CustomException      Redis 장애 + 딥 페이징(10페이지 초과) 요청 시
+     *                              ({@code PostErrorCode.TOO_DEEP_PAGE})
+     * @apiNote CircuitBreaker 적용 - Redis 장애 시 {@link #handleRedisDown(int, int, Post.PostType, Throwable)}으로 fallback
      */
     @CircuitBreaker(name = "redisDown", fallbackMethod = "handleRedisDown")
     public List<PostResponse> findPostList(int limit, int page, Post.PostType postType) throws InterruptedException {
         Timer.Sample sample = Timer.start(meterRegistry);
 
         try {
+
+            // 마일스톤 인덱스, 좌측 값(1 ~ 100이면 1)
             int mileStoneIndex = ((page - 1) / 100) * 100 + 1;
             int newPostsCount = Integer.parseInt(redisUtils.get("new_" + postType + "_posts_count").toString());
             int deletedPostsCount = Math.toIntExact(redisUtils.zSetGetCount(String.format("deleted:post:ids:%s", postType),
@@ -67,8 +88,11 @@ public class PostFacade {
 
             int pageId = Integer.parseInt(redisUtils.stringGet(postType + "_page:" + mileStoneIndex));
             int pagingOffset = (page - mileStoneIndex) * 10;
+
+            // 삭제된 포스트 갯수와 증가된 포스트 갯수를 보정한 계산된 오프셋 ( 실제 오프셋 값 )
             int calculatedOffset = pagingOffset - newPostsCount + deletedPostsCount;
 
+            // 마일스톤 인덱스가 1보다 큰 값이고 계산된 오프셋이 0 이하인 경우, 계산된 오프셋이 - 이므로 삭제된 포스트가 증가된 포스트보다 많음
             if(calculatedOffset < 0 && mileStoneIndex > 1) {
                 mileStoneIndex -= 100;
                 pageId = Integer.parseInt(redisUtils.stringGet(postType + "_page:" + mileStoneIndex));
@@ -78,6 +102,7 @@ public class PostFacade {
                 calculatedOffset = pagingOffset - newPostsCount + deletedPostsCount;
             }
 
+            // 마일스톤 인덱스가 1보다 작거나 같고 계산된 오프셋이 0 이하일 경우 ( 마일스톤 불일치 ) 캐싱하지 않고 오프셋 기반 탐색
             if (calculatedOffset < 0 && mileStoneIndex <= 1) {
                 int absoluteOffset = (page - 1) * 10;
                 return postService.findAbsolutePaging(limit, postType, absoluteOffset);
@@ -87,6 +112,7 @@ public class PostFacade {
 
             List<String> idStrs = redisUtils.listSet(idsKey, 0, -1);
 
+            //
             if (idStrs != null && !idStrs.isEmpty()) {
                 recordCacheAttempt(postType, "ids_hit");
 
