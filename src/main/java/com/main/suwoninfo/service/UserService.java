@@ -66,7 +66,7 @@ public class UserService {
     }
 
     private void validateDuplicateNick(String nick) {
-        Optional<User> validNick = userRepository.findByNick(nick);
+        Optional<User> validNick = userRepository.findByNickname(nick);
         if (validNick.isPresent()) {
             if (validNick.get().isActivated())
                 throw new CustomException(UserErrorCode.VALIDATED_NICK_ERROR);

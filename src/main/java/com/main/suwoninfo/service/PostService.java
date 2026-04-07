@@ -6,9 +6,7 @@ import com.main.suwoninfo.dto.PostResponse;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
-import com.main.suwoninfo.repository.PostRepository;
-import com.main.suwoninfo.repository.PostStatisticsRepository;
-import com.main.suwoninfo.repository.UserRepository;
+import com.main.suwoninfo.repository.*;
 import com.main.suwoninfo.utils.RedisUtils;
 import com.main.suwoninfo.utils.ToUtils;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +28,10 @@ import static com.main.suwoninfo.utils.ToUtils.toPostResponse;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final PostQueryRepository postQueryRepository;
     private final UserRepository userRepository;
     private final PostStatisticsRepository postStatisticsRepository;
+    private final PostStatisticsQueryRepository postStatisticsQueryRepository;
 
     private static final String CACHE_VERSION = "v1";
     private final RedisUtils redisUtils;
@@ -50,8 +50,8 @@ public class PostService {
                 .tradeStatus(postReq.tradeStatus())
                 .build();
         post.setUser(user);
-        postRepository.post(post);
-        PostStatistics postStatistics = postStatisticsRepository.findByType(postReq.postType());
+        postRepository.save(post);
+        PostStatistics postStatistics = postStatisticsRepository.findByPostType(postReq.postType());
         postStatistics.addCount();
         redisUtils.increment("new_" + post.getPostType() + "_posts_count");
         return toPostResponse(post);
@@ -77,7 +77,7 @@ public class PostService {
         if (!Objects.equals(post.getUser().getId(), user.getId()))
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
 
-        PostStatistics postStatistics = postStatisticsRepository.findByType(post.getPostType());
+        PostStatistics postStatistics = postStatisticsRepository.findByPostType(post.getPostType());
         postStatistics.minusCount();
 
         redisUtils.zSetSet("deleted:post:ids:" + post.getPostType(), postId);
@@ -98,14 +98,14 @@ public class PostService {
             return Integer.parseInt(cached.toString());
         }
 
-        int count = postStatisticsRepository.countPost(postType);
+        int count = postStatisticsQueryRepository.countPost(postType);
         redisUtils.stringSet(cacheKey, String.valueOf(count), Duration.ofMinutes(5));
 
         return count;
     }
 
     public List<PostResponse> searchPost(String keyword, int limit, int offset, Post.PostType postType) {
-        List<Post> postList = postRepository.findByTitle(keyword, limit, offset, postType);
+        List<Post> postList = postQueryRepository.findByTitle(keyword, limit, offset, postType);
         return postList.stream().map(ToUtils::toPostResponse).toList();
     }
 
@@ -116,12 +116,12 @@ public class PostService {
     public List<PostResponse> findByPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {
         log.info("limit {}, mileStoneOffset {}, postType {}, pagingOffset {}", limit, mileStoneOffset, postType, pagingOffset);
 
-        return postRepository.findByCursorPaging(limit, mileStoneOffset, postType, pagingOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
+        return postQueryRepository.findByCursorPaging(limit, mileStoneOffset, postType, pagingOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
     }
 
     public List<PostResponse> findAbsolutePaging(int limit, Post.PostType postType, int absoluteOffset) {
 
-        return postRepository.findAbsolutePaging(limit, postType, absoluteOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
+        return postQueryRepository.findAbsolutePaging(limit, postType, absoluteOffset).stream().map(ToUtils::toPostResponse).collect(Collectors.toList());
     }
 }
 

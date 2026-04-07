@@ -140,7 +140,6 @@ public class PostController {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
-        User user = userService.findByEmail(userDetails.getUsername());
         postService.delete(postId, userDetails.getUsername());
 
         String message = "삭제 성공";
@@ -149,7 +148,7 @@ public class PostController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<?> search(@RequestParam String keyword, @RequestParam int page, @RequestParam Post.PostType type) {
+    public ResponseEntity<?> search(@RequestParam(required = false) String keyword, @RequestParam int page, @RequestParam Post.PostType type) {
 
         int pageNum = (page - 1) * 10;
         List<PostResponse> postList = postService.searchPost(keyword, 10, pageNum, type);

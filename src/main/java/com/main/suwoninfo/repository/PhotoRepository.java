@@ -5,37 +5,20 @@ import com.main.suwoninfo.domain.QPhoto;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 
-@RequiredArgsConstructor
 @Repository
-public class PhotoRepository {
+public interface PhotoRepository extends JpaRepository<Photo, Long> {
+    Photo save(Photo photo);
 
-    private final EntityManager entityManager;
-    private final JPAQueryFactory queryFactory;
+    void delete(Photo photo);
 
-    public Photo save(Photo photo) {
-        entityManager.persist(photo);
-        return photo;
-    }
+    List<Photo> findByPost(Long postId);
 
-    public void delete(Photo photo) {
-        entityManager.remove(photo);
-    }
-
-    public List<Photo> findByPost(Long postId) {
-        return entityManager.createQuery("select p.photo from Post p where p.id = :id", Photo.class)
-                .setParameter("id", postId)
-                .getResultList();
-    }
-
-    public Optional<Photo> findById(Long id) {
-        return queryFactory.selectFrom(QPhoto.photo)
-                .where(QPhoto.photo.id.eq(id))
-                .fetch().stream().findAny();
-    }
+    Optional<Photo> findById(Long id);
 }

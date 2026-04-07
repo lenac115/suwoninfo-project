@@ -8,6 +8,7 @@ import com.main.suwoninfo.exception.CommentErrorCode;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.PostErrorCode;
 import com.main.suwoninfo.exception.UserErrorCode;
+import com.main.suwoninfo.repository.CommentQueryRepository;
 import com.main.suwoninfo.repository.CommentRepository;
 import com.main.suwoninfo.repository.PostRepository;
 import com.main.suwoninfo.repository.UserRepository;
@@ -29,6 +30,7 @@ import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
 public class CommentService {
 
     private final CommentRepository commentRepository;
+    private final CommentQueryRepository commentQueryRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
 
@@ -39,11 +41,12 @@ public class CommentService {
         Post post = postRepository.findById(boardId)
                 .orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
 
-        Comment comment = new Comment();
-        comment.setUser(user);
-        comment.setPost(post);
-        comment.setActivated(true);
-        comment.setContent(detail);
+        Comment comment = Comment.builder()
+                .user(user)
+                .post(post)
+                .activated(true)
+                .content(detail)
+                .build();
 
         commentRepository.save(comment);
         return CommentResponse.builder()
@@ -61,11 +64,12 @@ public class CommentService {
         Comment parent = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
 
-        Comment comment = new Comment();
-        comment.setUser(user);
-        comment.setPost(post);
-        comment.setContent(detail);
-        comment.setActivated(true);
+        Comment comment = Comment.builder()
+                .user(user)
+                .post(post)
+                .activated(true)
+                .content(detail)
+                .build();
         comment.addReplyComment(parent);
 
         commentRepository.save(comment);
@@ -76,7 +80,7 @@ public class CommentService {
     }
 
     public List<CommentResponse> findByPaging(Long postId) {
-        List<Comment> comment = commentRepository.findByPaging(postId);
+        List<Comment> comment = commentQueryRepository.findByPaging(postId);
         List<CommentResponse> result = new ArrayList<>();
         Map<Long, CommentResponse> map = new HashMap<>();
 
@@ -127,7 +131,7 @@ public class CommentService {
 
         if (comment.getUser().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
-        comment.setContent(detail);
+        comment.updateContent(detail);
     }
 
     @Transactional
@@ -140,7 +144,7 @@ public class CommentService {
         if (comment.getUser().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
 
-        commentRepository.delete(comment);
+        comment.setActivated(false);
     }
 
     public int countComment(Long postId) {

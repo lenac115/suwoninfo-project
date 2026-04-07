@@ -1,36 +1,23 @@
 package com.main.suwoninfo.repository;
 
 import com.main.suwoninfo.domain.Todo;
-import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-@RequiredArgsConstructor
-public class TodoRepository {
+public interface TodoRepository extends JpaRepository<Todo, Long> {
 
-    private final EntityManager entityManager;
+    @Query("select t from Todo t where t.user.email = :email")
+    List<Todo> findByUser(String email);
 
-    public List<Todo> findByUser(String email) {
-        return entityManager.createQuery("select t from Todo t where t.user.email = :email", Todo.class)
-                .setParameter("email", email)
-                .getResultList();
-    }
+    Optional<Todo> findById(@Nonnull Long id);
 
-    public Optional<Todo> findById(Long id) {
-        return entityManager.createQuery("select t from Todo t where t.id = :id", Todo.class)
-                .setParameter("id", id)
-                .getResultList().stream().findAny();
-    }
+    void createTodo(Todo todo);
 
-    public void createTodo(Todo todo) {
-        entityManager.persist(todo);
-    }
-
-    public void delete(Todo todo) {
-        entityManager.remove(todo);
-    }
+    void delete(@Nonnull Todo todo);
 }

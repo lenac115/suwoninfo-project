@@ -2,15 +2,17 @@ package com.main.suwoninfo.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter @Setter
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(
         name = "comment"
 )
@@ -68,5 +70,13 @@ public class Comment extends Time {
         this.parent = parent;
         this.depth = parent.getDepth() + 1;
         this.parent.children.add(this);
+    }
+
+    public void setActivated(boolean b) {
+        this.activated = b;
+    }
+
+    public void updateContent(String detail) {
+        this.content = detail;
     }
 }
