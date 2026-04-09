@@ -13,7 +13,7 @@
 ## 🛠 사용한 기술
 + Language & Framework : Java, Spring Boot, Spring MVC, Spring Data JPA 
 + Security : Spring Security, JWT 
-+ Database & Cache : MySQL, Redis 
++ Database & Cache : MySQL, Redis, QueryDSL
 + Infra & Testing : Docker, JMeter, JUnit5
 
 
