@@ -62,7 +62,7 @@ public class PostService {
 
         Post findPost = postRepository.findById(postId).orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
         User findUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(UserErrorCode.NOT_AVAILABLE_EMAIL));
-        if (findPost.getUser() != findUser)
+        if (findPost.getUsers() != findUser)
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
 
         findPost.update(postDto);
@@ -74,7 +74,7 @@ public class PostService {
         Post post = findById(postId);
         User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
 
-        if (!Objects.equals(post.getUser().getId(), user.getId()))
+        if (!Objects.equals(post.getUsers().getId(), user.getId()))
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
 
         PostStatistics postStatistics = postStatisticsRepository.findByPostType(post.getPostType());

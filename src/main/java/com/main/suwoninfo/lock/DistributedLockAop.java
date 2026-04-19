@@ -38,7 +38,7 @@ public class DistributedLockAop {
             if (!available) {
                 throw new CannotAcquireLockException("락을 획득할 수 없습니다. key=" + key);
             }
-            log.warn("락 획득 진짜 성공! 트랜잭션 시작. key={}", key);
+            log.warn("락 획득 진짜 성공 트랜잭션 시작. key={}", key);
             return aopForTransaction.proceed(pjp);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

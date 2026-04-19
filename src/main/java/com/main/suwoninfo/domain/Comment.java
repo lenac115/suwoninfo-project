@@ -52,7 +52,7 @@ public class Comment extends Time {
     //유저 외래키
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private User users;
 
     //포스트 연관관계 지정
     public void setPost(Post post) {
@@ -62,7 +62,7 @@ public class Comment extends Time {
 
     //유저 연관관계 지정
     public void setUser(User user) {
-        this.user = user;
+        this.users = user;
         user.getCommentList().add(this);
     }
 

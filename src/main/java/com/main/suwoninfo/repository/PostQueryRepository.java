@@ -28,7 +28,7 @@ public class PostQueryRepository {
 
     public Optional<Post> findById(Long postId) {
         return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
+                .join(post.users, user).fetchJoin()
                 .leftJoin(post.photo, photo).fetchJoin()
                 .where(post.id.eq(postId))
                 .stream().findAny();
@@ -51,7 +51,7 @@ public class PostQueryRepository {
     public List<Post> findByCursorPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {
 
         return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
+                .join(post.users, user).fetchJoin()
                 .where(post.postType.eq(postType),
                         (post.id.loe(mileStoneOffset)))
                 .orderBy(post.id.desc())
@@ -66,7 +66,7 @@ public class PostQueryRepository {
 
     public List<Post> findAllById(List<Long> longIds) {
         List<Post> rows = queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
+                .join(post.users, user).fetchJoin()
                 .where(post.id.in(longIds))
                 .fetch();
         Map<Long, Post> postMap = rows.stream()
@@ -83,7 +83,7 @@ public class PostQueryRepository {
     public List<Post> findAbsolutePaging(int limit, Post.PostType postType, int absoluteOffset) {
 
         return queryFactory.selectFrom(post)
-                .join(post.user, user).fetchJoin()
+                .join(post.users, user).fetchJoin()
                 .where(post.postType.eq(postType))
                 .orderBy(post.id.desc())
                 .limit(limit)

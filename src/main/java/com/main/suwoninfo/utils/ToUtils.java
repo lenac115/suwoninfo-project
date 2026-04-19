@@ -46,7 +46,7 @@ public class ToUtils {
     public static CommentResponse toCommentResponse(Comment c) {
         return CommentResponse.builder()
                 .id(c.getId())
-                .user(toUserResponse(c.getUser()))
+                .user(toUserResponse(c.getUsers()))
                 .content(c.getContent())
                 .post(toPostResponse(c.getPost()))
                 .build();
@@ -62,7 +62,7 @@ public class ToUtils {
                 .startMinute(t.getStartMinute())
                 .startHour(t.getStartHour())
                 .endHour(t.getEndHour())
-                .userResponse(toUserResponse(t.getUser()))
+                .userResponse(toUserResponse(t.getUsers()))
                 .endMinute(t.getEndMinute())
                 .build();
     }

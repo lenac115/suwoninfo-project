@@ -128,7 +128,7 @@ public class PostFacade {
 
             // Cache miss: 동기 재구성
             recordCacheAttempt(postType, "ids_miss");
-            return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset);
+            return self.rebuildFind(limit, pageId, idsKey, postType, pagingOffset);
 
         } finally {
             sample.stop(Timer.builder("api.posts.list")
@@ -161,7 +161,7 @@ public class PostFacade {
 
         if (missingIds.isEmpty()) {
             log.warn("캐시 데이터 불일치 감지. 재구성 필요: {}", idsKey);
-            return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset);
+            return self.rebuildFind(limit, pageId, idsKey, postType, pagingOffset);
         }
 
         // 소수 누락: 보충
@@ -172,7 +172,7 @@ public class PostFacade {
 
         // 다수 누락: 재구성
         recordCacheAttempt(postType, "too_many_missing");
-        return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset);
+        return self.rebuildFind(limit, pageId, idsKey, postType, pagingOffset);
     }
 
     /**
@@ -194,7 +194,7 @@ public class PostFacade {
             if (missingPosts.size() < longIds.size()) {
                 log.warn("삭제된 게시글 감지. 캐시 재구성: {}", idsKey);
                 redisUtils.expire(idsKey, Duration.ofSeconds(10));
-                return self.rebuildFindWithLock(limit, pageId, idsKey, postType, pagingOffset);
+                return self.rebuildFind(limit, pageId, idsKey, postType, pagingOffset);
             }
 
             // 누락된 게시글만 캐싱 (파이프라인 사용)
@@ -235,7 +235,7 @@ public class PostFacade {
     /**
      * 캐시 재구성
      */
-    public List<PostResponse> rebuildFindWithLock(int limit, int pageId, String idsKey, Post.PostType type, int pagingOffset) {
+    public List<PostResponse> rebuildFind(int limit, int pageId, String idsKey, Post.PostType type, int pagingOffset) {
         Timer.Sample sample = Timer.start(meterRegistry);
 
         //String lockKey = "cache:rebuild:" + type + ":page:" + mileStoneOffset;
@@ -302,7 +302,7 @@ public class PostFacade {
     @Async
     public void asyncRebuild(int limit, int offset, String idsKey, Post.PostType type, int pagingOffset) {
         try {
-            self.rebuildFindWithLock(limit, offset, idsKey, type, pagingOffset);
+            self.rebuildFind(limit, offset, idsKey, type, pagingOffset);
             recordCacheAttempt(type, "per_refresh_success");
         } catch (Exception e) {
             log.warn("비동기 캐시 갱신 실패: type={}, offset={}", type, offset, e);

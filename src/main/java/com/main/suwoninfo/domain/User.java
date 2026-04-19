@@ -13,7 +13,7 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "user", indexes = {
+@Table(name = "users", indexes = {
         @Index(name = "idx_user_email", columnList = "email, activated")
 })
 @Builder
@@ -66,12 +66,12 @@ public class User extends Time {
     @Column(columnDefinition = "boolean default true")
     private boolean activated;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "users")
     private List<Post> postList = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "users")
     private List<Comment> commentList = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "users")
     private List<Todo> todoList = new ArrayList<>();
 }

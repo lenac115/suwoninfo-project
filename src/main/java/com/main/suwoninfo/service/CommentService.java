@@ -42,7 +42,7 @@ public class CommentService {
                 .orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
 
         Comment comment = Comment.builder()
-                .user(user)
+                .users(user)
                 .post(post)
                 .activated(true)
                 .content(detail)
@@ -65,7 +65,7 @@ public class CommentService {
                 .orElseThrow(() -> new CustomException(CommentErrorCode.NOT_EXIST_COMMENT));
 
         Comment comment = Comment.builder()
-                .user(user)
+                .users(user)
                 .post(post)
                 .activated(true)
                 .content(detail)
@@ -90,7 +90,7 @@ public class CommentService {
                         commentResponse = CommentResponse.builder()
                                 .content(c.getContent())
                                 .id(c.getId())
-                                .user(toUserResponse(c.getUser()))
+                                .user(toUserResponse(c.getUsers()))
                                 .children(new ArrayList<>())
                                 .parent(toCommentResponse(c.getParent()))
                                 .build();
@@ -98,7 +98,7 @@ public class CommentService {
                         commentResponse = CommentResponse.builder()
                                 .content("삭제된 댓글입니다.")
                                 .id(c.getId())
-                                .user(toUserResponse(c.getUser()))
+                                .user(toUserResponse(c.getUsers()))
                                 .parent(toCommentResponse(c.getParent()))
                                 .children(new ArrayList<>())
                                 .build();
@@ -129,7 +129,7 @@ public class CommentService {
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
 
-        if (comment.getUser().getId() != findUser.getId())
+        if (comment.getUsers().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
         comment.updateContent(detail);
     }
@@ -141,7 +141,7 @@ public class CommentService {
         User findUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
 
-        if (comment.getUser().getId() != findUser.getId())
+        if (comment.getUsers().getId() != findUser.getId())
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
 
         comment.setActivated(false);

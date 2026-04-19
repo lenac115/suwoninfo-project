@@ -46,7 +46,7 @@ public class TodoService {
                 .build();
         List<Todo> todoList = todoRepository.findByUser(email);
         if(todoList.isEmpty())
-            todoRepository.createTodo(todo);
+            todoRepository.save(todo);
         else {
             for (Todo getedTodo : todoList) {
                 int gotStartTime = getedTodo.getStartHour() * 60 + getedTodo.getStartMinute();
@@ -58,9 +58,9 @@ public class TodoService {
                     if (getedTodo.getDayList() == todo.getDayList())
                         throw new CustomException(TodoErrorCode.DUPLICATED_TODO);
                     else
-                        todoRepository.createTodo(todo);
+                        todoRepository.save(todo);
                 } else {
-                    todoRepository.createTodo(todo);
+                    todoRepository.save(todo);
                 }
             }
         }
@@ -70,7 +70,7 @@ public class TodoService {
     public void update(TodoResponse todoDto, String email) {
         Todo findTodo = todoRepository.findById(todoDto.id()).orElseThrow(()->new CustomException(TodoErrorCode.NOT_EXIST_TODO));
         User findUser = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
-        if (findTodo.getUser() !=  findUser)
+        if (findTodo.getUsers() !=  findUser)
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
 
         findTodo.update(findTodo);
@@ -80,7 +80,7 @@ public class TodoService {
     public void todoDelete(Long todoId, String email) {
         User findUser = userRepository.findByEmail(email).orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
         Todo findTodo = todoRepository.findById(todoId).orElseThrow(() -> new CustomException(TodoErrorCode.NOT_EXIST_TODO));
-        if(findTodo.getUser() != findUser)
+        if(findTodo.getUsers() != findUser)
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
 
         todoRepository.delete(findTodo);

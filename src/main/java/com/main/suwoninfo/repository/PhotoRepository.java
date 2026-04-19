@@ -6,6 +6,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     void delete(Photo photo);
 
+    @Query("select p from Photo p where p.post.id = :postId")
     List<Photo> findByPost(Long postId);
 
     Optional<Photo> findById(Long id);

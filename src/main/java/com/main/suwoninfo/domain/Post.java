@@ -46,7 +46,7 @@ public class Post extends Time {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private User users;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<Comment> comment = new ArrayList<>();
@@ -55,7 +55,7 @@ public class Post extends Time {
     private List<Photo> photo = new ArrayList<>();
 
     public void setUser(User user) {
-        this.user = user;
+        this.users = user;
         user.getPostList().add(this);
     }
 

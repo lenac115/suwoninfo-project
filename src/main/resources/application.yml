@@ -1,6 +1,19 @@
 server:
   port: 8081
 spring:
+  #ai:
+    #openai:
+      #api-key: {OPENAI_API_KEY}
+      #chat:
+        #options:
+          #model: gpt-4o-mini
+          #temperature: 0.3
+      #embedding:
+        #options:
+          #model: text-embedding-3-small
+    #vectorstore:
+      #chroma:
+        #collection-name: suwon
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/memberdb2?characterEncoding=UTF-8&serverTimezone=UTC
@@ -28,6 +41,9 @@ spring:
     properties.hibernate.format_sql: true
     properties.hibernate.default_batch_fetch_size: 100
     open-in-view: false
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
 
   data:
     redis:

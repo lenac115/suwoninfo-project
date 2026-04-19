@@ -40,10 +40,10 @@ public class Todo extends Time {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private User users;
 
     public void setUser(User user) {
-        this.user = user;
+        this.users = user;
         user.getTodoList().add(this);
     }
 
