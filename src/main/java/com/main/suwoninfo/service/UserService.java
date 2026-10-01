@@ -16,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -93,8 +94,10 @@ public class UserService {
             throw new CustomException(UserErrorCode.NOT_EQUAL_EMAIL);
         }
         findUser.update(form);
+        if (StringUtils.hasText(form.password()))
+            findUser.changePassword(passwordEncoder.encode(form.password()));
 
-        return toUserResponse(findUser.update(form));
+        return toUserResponse(findUser);
     }
 
     //로그인 메소드

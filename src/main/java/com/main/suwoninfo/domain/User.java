@@ -52,10 +52,14 @@ public class User extends Time {
     }
 
     public User update(UserRequest form) {
-        this.password = form.password();
         this.name = form.name();
         this.nickname = form.nickname();
         return this;
+    }
+
+    // 반드시 PasswordEncoder로 인코딩된 값을 넘길 것
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 
     public enum Auth {

@@ -28,7 +28,6 @@ public class ToUtils {
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .studentNumber(user.getStudentNumber())
-                .password(user.getPassword())
                 .name(user.getName())
                 .activated(user.isActivated())
                 .build();

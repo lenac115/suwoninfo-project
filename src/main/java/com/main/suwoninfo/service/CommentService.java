@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.main.suwoninfo.utils.ToUtils.toCommentResponse;
 import static com.main.suwoninfo.utils.ToUtils.toUserResponse;
 
 @Service
@@ -85,30 +84,22 @@ public class CommentService {
         Map<Long, CommentResponse> map = new HashMap<>();
 
         comment.forEach(c -> {
-                    CommentResponse commentResponse;
-                    if (c.isActivated()) {
-                        commentResponse = CommentResponse.builder()
-                                .content(c.getContent())
-                                .id(c.getId())
-                                .user(toUserResponse(c.getUsers()))
-                                .children(new ArrayList<>())
-                                .parent(toCommentResponse(c.getParent()))
-                                .build();
-                    } else {
-                        commentResponse = CommentResponse.builder()
-                                .content("삭제된 댓글입니다.")
-                                .id(c.getId())
-                                .user(toUserResponse(c.getUsers()))
-                                .parent(toCommentResponse(c.getParent()))
-                                .children(new ArrayList<>())
-                                .build();
-                    }
-                    /*if (c.getParent() != null) {
-                        commentResponse.parent(toCommentResponse(c.getParent()));
-                    }*/
+                    // 최상위 댓글은 parent가 null이므로 부모가 있을 때만 id만 담아서 내려줌
+                    CommentResponse parent = c.getParent() == null ? null
+                            : CommentResponse.builder().id(c.getParent().getId()).build();
+
+                    CommentResponse commentResponse = CommentResponse.builder()
+                            .content(c.isActivated() ? c.getContent() : "삭제된 댓글입니다.")
+                            .id(c.getId())
+                            .user(toUserResponse(c.getUsers()))
+                            .parent(parent)
+                            .children(new ArrayList<>())
+                            .build();
+
                     map.put(commentResponse.id(), commentResponse);
-                    if (c.getParent() != null)
-                        map.get(c.getParent().getId()).children().add(commentResponse);
+                    CommentResponse parentResponse = parent == null ? null : map.get(parent.id());
+                    if (parentResponse != null)
+                        parentResponse.children().add(commentResponse);
                     else result.add(commentResponse);
                 }
         );
