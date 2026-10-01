@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SuwonInfo</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a href="#/" class="brand">SuwonInfo</a>
+        <nav class="nav">
+            <a href="#/board/FREE" data-nav="FREE">자유게시판</a>
+            <a href="#/board/TRADE" data-nav="TRADE">중고거래</a>
+            <a href="#/todo" data-nav="todo" data-auth>시간표</a>
+        </nav>
+        <div class="nav-user" id="nav-user"></div>
+    </div>
+</header>
+
+<main id="app" class="container"></main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/views.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
