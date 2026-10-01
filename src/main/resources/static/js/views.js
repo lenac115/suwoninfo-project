@@ -381,15 +381,23 @@ const Views = {
             const f = ev.target;
             try {
                 Auth.save(await Api.login(f.email.value.trim(), f.password.value));
-                Auth.me = await Api.info();
-                window.dispatchEvent(new Event('auth-changed'));
-                toast(`${Auth.me.nickname}님 환영합니다!`);
-                location.hash = query.get('next') || '#/';
             } catch (e) {
                 Auth.clear();
                 toast(e.code === 'NOT_CORRECT_PASSWORD' ? '비밀번호가 올바르지 않습니다.'
                     : e.code === 'NOT_EXIST_EMAIL' ? '존재하지 않는 이메일입니다.' : e.message, true);
+                return;
             }
+            // 로그인 자체와 내 정보 조회 실패를 구분해서 안내
+            try {
+                Auth.me = await Api.info();
+            } catch (e) {
+                Auth.clear();
+                toast('로그인은 됐지만 사용자 정보를 불러오지 못했습니다: ' + e.message, true);
+                return;
+            }
+            window.dispatchEvent(new Event('auth-changed'));
+            toast(`${Auth.me.nickname}님 환영합니다!`);
+            location.hash = query.get('next') || '#/';
         });
     },
 
@@ -541,6 +549,7 @@ const Views = {
                         <label>시작<input name="start" type="time" value="09:00" step="300" required></label>
                         <label>종료<input name="end" type="time" value="10:15" step="300" required></label>
                     </div>
+                    <p class="form-error" id="todo-error" role="alert" hidden></p>
                     <div class="actions">
                         <button type="button" class="btn danger" id="todo-del" hidden>삭제</button>
                         <button type="button" class="btn ghost" id="todo-reset" hidden>취소</button>
@@ -552,8 +561,22 @@ const Views = {
         const form = root.querySelector('#todo-form');
         const delBtn = root.querySelector('#todo-del');
         const resetBtn = root.querySelector('#todo-reset');
+        const errorEl = root.querySelector('#todo-error');
+
+        // 저장 실패는 토스트만으로는 놓치기 쉬우므로 폼 안에 남겨두고, 충돌한 수업 블록을 강조
+        const showError = (msg, conflictId) => {
+            errorEl.textContent = msg || '';
+            errorEl.hidden = !msg;
+            root.querySelectorAll('.tt-item.conflict').forEach(el => el.classList.remove('conflict'));
+            if (conflictId != null) {
+                const el = root.querySelector(`.tt-item[data-id="${conflictId}"]`);
+                if (el) el.classList.add('conflict');
+            }
+        };
+        const fmt = (t) => `${DAY_NAME[t.dayList]} ${pad(t.startHour)}:${pad(t.startMinute)}~${pad(t.endHour)}:${pad(t.endMinute)}`;
 
         const fill = (t) => {
+            showError(null);
             form.todoId.value = t ? t.id : '';
             form.subject.value = t ? t.className || '' : '';
             form.classroom.value = t ? t.classroom || '' : '';
@@ -580,7 +603,8 @@ const Views = {
             ev.preventDefault();
             const [sh, sm] = form.start.value.split(':').map(Number);
             const [eh, em] = form.end.value.split(':').map(Number);
-            if (eh * 60 + em <= sh * 60 + sm) return toast('종료 시간이 시작 시간보다 늦어야 합니다.', true);
+            const start = sh * 60 + sm, end = eh * 60 + em;
+            if (end <= start) return showError('종료 시간이 시작 시간보다 늦어야 합니다.');
             const body = {
                 id: form.todoId.value ? Number(form.todoId.value) : null,
                 className: form.subject.value.trim(),
@@ -589,12 +613,22 @@ const Views = {
                 dayList: form.dayList.value,
                 startHour: sh, startMinute: sm, endHour: eh, endMinute: em,
             };
+
+            // 서버(TodoService.validateTime)와 같은 규칙으로 미리 검사 (수정 시 자기 자신 제외)
+            const conflict = todos.find(t => t.id !== body.id && t.dayList === body.dayList
+                && start < t.endHour * 60 + t.endMinute && end > t.startHour * 60 + t.startMinute);
+            if (conflict) {
+                return showError(`'${conflict.className || '수업'}'(${fmt(conflict)})과 시간이 겹쳐 저장할 수 없습니다.`, conflict.id);
+            }
+
             try {
                 if (body.id) await Api.updateTodo(body); else await Api.createTodo(body);
                 toast('저장되었습니다.');
                 Views.todo(root);
             } catch (e) {
-                toast(e.code === 'DUPLICATED_TODO' ? '같은 시간에 이미 수업이 있습니다.' : e.message, true);
+                showError(e.code === 'DUPLICATED_TODO'
+                    ? '같은 시간에 이미 수업이 있어 저장되지 않았습니다.'
+                    : '저장 실패: ' + e.message);
             }
         });
     },

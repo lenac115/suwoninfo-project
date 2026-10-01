@@ -1,6 +1,5 @@
 package com.main.suwoninfo.jwt;
 
-import com.main.suwoninfo.domain.User;
 import com.main.suwoninfo.exception.CustomException;
 import com.main.suwoninfo.exception.UserErrorCode;
 import com.main.suwoninfo.service.CustomUserDetailService;
@@ -25,13 +24,13 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         String password = authentication.getCredentials().toString();
 
         CustomUserDetails userDetails = customUserDetailService.loadUserByUsername(email);
-        User user = userDetails.getUser();
         if (!passwordEncoder.matches(password, userDetails.getPassword())) {
             throw new CustomException(UserErrorCode.NOT_CORRECT_PASSWORD);
         }
 
-
-        return new UsernamePasswordAuthenticationToken(user, null, userDetails.getAuthorities());
+        // principal은 UserDetails여야 getName()이 이메일을 반환함
+        // (도메인 User를 넣으면 getName()이 User.toString()이 되어 JWT subject가 깨짐)
+        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
     }
 
     @Override

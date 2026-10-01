@@ -88,6 +88,11 @@ public class PostService {
         return postRepository.findById(id).orElseThrow(() -> new CustomException(PostErrorCode.NOT_EXIST_POST));
     }
 
+    // 게시글 상세 조회: photo가 LAZY이므로 트랜잭션 안에서 DTO로 변환해서 반환
+    public PostResponse view(Long id) {
+        return toPostResponse(findById(id));
+    }
+
     @Transactional
     public int countPost(Post.PostType postType) {
 
@@ -109,8 +114,9 @@ public class PostService {
         return postList.stream().map(ToUtils::toPostResponse).toList();
     }
 
-    public List<Post> findAllById(List<Long> longIds) {
-        return postRepository.findAllById(longIds);
+    // photo가 LAZY이므로 트랜잭션 안에서 DTO로 변환해서 반환
+    public List<PostResponse> findAllById(List<Long> longIds) {
+        return postRepository.findAllById(longIds).stream().map(ToUtils::toPostResponse).toList();
     }
 
     public List<PostResponse> findByPaging(int limit, int mileStoneOffset, Post.PostType postType, int pagingOffset) {

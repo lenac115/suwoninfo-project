@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.main.suwoninfo.utils.ToUtils.toPostResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -108,7 +107,7 @@ public class PostFacade {
                 return postService.findAbsolutePaging(limit, postType, absoluteOffset);
             }
 
-            String idsKey = buildVersionedIdsKey(postType, mileStoneIndex, limit);
+            String idsKey = buildVersionedIdsKey(postType, mileStoneIndex, pagingOffset, limit);
 
             List<String> idStrs = redisUtils.listSet(idsKey, 0, -1);
 
@@ -188,7 +187,7 @@ public class PostFacade {
                     .map(Long::parseLong)
                     .collect(Collectors.toList());
 
-            List<Post> missingPosts = postService.findAllById(longIds);
+            List<PostResponse> missingPosts = postService.findAllById(longIds);
 
             // 찾은 게시글 수가 요청한 ID 수보다 적으면 삭제된 게시글 존재 → 재구성
             if (missingPosts.size() < longIds.size()) {
@@ -199,15 +198,14 @@ public class PostFacade {
 
             // 누락된 게시글만 캐싱 (파이프라인 사용)
             Map<String, Object> toCache = new HashMap<>();
-            for (Post post : missingPosts) {
-                PostResponse response = toPostResponse(post);
-                toCache.put(buildVersionedPostKey(String.valueOf(post.getId())), response);
+            for (PostResponse response : missingPosts) {
+                toCache.put(buildVersionedPostKey(String.valueOf(response.postId())), response);
             }
             redisUtils.pipelineSet(toCache, addJitter(POST_TTL));
 
             // 전체 결과 조립
-            Map<Long, Post> postMap = missingPosts.stream()
-                    .collect(Collectors.toMap(Post::getId, Function.identity()));
+            Map<Long, PostResponse> postMap = missingPosts.stream()
+                    .collect(Collectors.toMap(PostResponse::postId, Function.identity()));
 
             List<PostResponse> result = new ArrayList<>();
             for (String id : allIds) {
@@ -216,9 +214,9 @@ public class PostFacade {
                 if (cachedObj != null) {
                     result.add(objectMapper.convertValue(cachedObj, PostResponse.class));
                 } else {
-                    Post post = postMap.get(Long.valueOf(id));
+                    PostResponse post = postMap.get(Long.valueOf(id));
                     if (post != null) {
-                        result.add(toPostResponse(post));
+                        result.add(post);
                     }
                 }
             }
@@ -314,7 +312,7 @@ public class PostFacade {
     /**
      * Redis 서버 다운시
      * @param limit 가져올 게시글 갯수
-     * @param page 통짜 offset
+     * @param page 요청 페이지 번호 ( 1에서 시작, findPostList와 동일 )
      * @param postType 게시글 타입
      * @param throwable 서킷 브레이커에 필수로 들어가야하는 인수
      * @return 페이지 리턴
@@ -322,12 +320,12 @@ public class PostFacade {
     protected List<PostResponse> handleRedisDown(int limit, int page, Post.PostType postType, Throwable throwable) {
 
         if (page > 10) {
-            log.warn("Redis 장애 상황에서 깊은 페이징 요청 차단: page={}", page + 1);
+            log.warn("Redis 장애 상황에서 깊은 페이징 요청 차단: page={}", page);
             throw new CustomException(PostErrorCode.TOO_DEEP_PAGE);
         }
 
         log.warn("Redis 서버 응답 실패. DB 직접 조회로 fallback");
-        return postService.findAbsolutePaging(limit, postType, page * 10);
+        return postService.findAbsolutePaging(limit, postType, (page - 1) * limit);
     }
 
     /**
@@ -362,9 +360,10 @@ public class PostFacade {
         return missing;
     }
 
-    private String buildVersionedIdsKey(Post.PostType type, int mileStoneIndex, int limit) {
+    // 같은 이정표(100페이지) 안에서도 페이지마다 조회 결과가 다르므로 pagingOffset까지 키에 포함
+    private String buildVersionedIdsKey(Post.PostType type, int mileStoneIndex, int pagingOffset, int limit) {
         return buildVersionedKey(
-                String.format("posts:ids:%s:page:%d:size:%d", type, mileStoneIndex, limit)
+                String.format("posts:ids:%s:milestone:%d:offset:%d:size:%d", type, mileStoneIndex, pagingOffset, limit)
         );
     }
 

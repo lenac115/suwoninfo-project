@@ -27,11 +27,11 @@ public class PostQueryRepository {
     }
 
     public Optional<Post> findById(Long postId) {
-        return queryFactory.selectFrom(post)
+        return Optional.ofNullable(queryFactory.selectFrom(post)
                 .join(post.users, user).fetchJoin()
-                .leftJoin(post.photo, photo).fetchJoin()
+                .leftJoin(post.photo, photo)
                 .where(post.id.eq(postId))
-                .stream().findAny();
+                .fetchOne());
     }
 
     public List<Post> findByTitle(String keyword, int limit, int offset, Post.PostType postType) {

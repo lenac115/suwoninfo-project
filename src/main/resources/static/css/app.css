@@ -168,6 +168,11 @@ textarea { resize: vertical; }
     display: flex; flex-direction: column;
 }
 .tt-item span { opacity: .85; }
+.tt-item.conflict { outline: 3px solid var(--danger); outline-offset: 1px; z-index: 1; }
+.form-error {
+    margin: 0; padding: .55rem .75rem; border-radius: 8px; font-size: .875rem; font-weight: 600;
+    color: var(--danger); border: 1px solid var(--danger);
+}
 .tt-item.c0 { background: #3b6fd1; } .tt-item.c1 { background: #2e9b6a; } .tt-item.c2 { background: #c9671e; }
 .tt-item.c3 { background: #8a4fc4; } .tt-item.c4 { background: #c23b65; } .tt-item.c5 { background: #2a8a9b; }
 

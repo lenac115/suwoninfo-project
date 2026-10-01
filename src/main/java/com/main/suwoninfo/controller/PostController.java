@@ -23,7 +23,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-import static com.main.suwoninfo.utils.ToUtils.toPostResponse;
 
 /**
  * 게시글 관련 컨트롤러
@@ -93,14 +92,15 @@ public class PostController {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
-        if (page == null) {
+        if (page == null || page < 1) {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
 
         int pageIndex = page - 1;
 
-        List<PostResponse> postList = postFacade.findPostList(10, pageIndex, type);
+        // findPostList는 1부터 시작하는 페이지 번호를 받음
+        List<PostResponse> postList = postFacade.findPostList(PAGE_SIZE, page, type);
         int totalCount = postService.countPost(type);
         //int totalCount = postService.countTradePost();
         int totalPage = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -111,7 +111,7 @@ public class PostController {
 
         stopWatch.stop();
         log.info("=============================================");
-        log.info("조건: Type={}, Page={}", "TRADE", page);
+        log.info("조건: Type={}, Page={}", type, page);
         log.info("조회 건수: {}개", postList.size());
         log.info("걸린 시간: {} ms ({} 초)",
                 stopWatch.getTotalTimeMillis(),
@@ -128,7 +128,7 @@ public class PostController {
             String message = "빈 객체 반환";
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
-        PostResponse postResponse = toPostResponse(postService.findById(postId));
+        PostResponse postResponse = postService.view(postId);
 
         return ResponseEntity.status(HttpStatus.OK).body(postResponse);
     }

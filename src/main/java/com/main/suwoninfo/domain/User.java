@@ -13,7 +13,7 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "users", indexes = {
+@Table(name = "user", indexes = {
         @Index(name = "idx_user_email", columnList = "email, activated")
 })
 @Builder
