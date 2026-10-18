@@ -50,7 +50,7 @@ class PostServiceTest {
         // Given: Redis에 카운트 캐시 존재
         given(redisUtils.versionedKey(anyString(), anyString()))
                 .willReturn("v1:posts:FREE:count");
-        given(redisUtils.get("v1:posts:FREE:count")).willReturn(500);
+        given(redisUtils.stringGet("v1:posts:FREE:count")).willReturn("500");
 
         // When
         int count = postService.countPost(Post.PostType.FREE);
@@ -67,15 +67,15 @@ class PostServiceTest {
         // Given
         given(redisUtils.versionedKey(anyString(), anyString()))
                 .willReturn("v1:posts:FREE:count");
-        given(redisUtils.get("v1:posts:FREE:count")).willReturn(null);
+        given(redisUtils.stringGet("v1:posts:FREE:count")).willReturn(null);
         given(postStatisticsQueryRepository.countPost(Post.PostType.FREE)).willReturn(1234);
 
         // When
         int count = postService.countPost(Post.PostType.FREE);
 
-        // Then
+        // Then : 조회한 키와 같은 버전 키에 저장해야 다음 요청에서 히트
         assertThat(count).isEqualTo(1234);
-        verify(redisUtils).stringSet(eq("posts:FREE:count"), eq("1234"), any());
+        verify(redisUtils).stringSet(eq("v1:posts:FREE:count"), eq("1234"), any());
     }
 
 

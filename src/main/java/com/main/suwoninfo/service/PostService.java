@@ -12,6 +12,7 @@ import com.main.suwoninfo.utils.ToUtils;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +55,7 @@ public class PostService {
         PostStatistics postStatistics = postStatisticsRepository.findByPostType(postReq.postType());
         postStatistics.addCount();
         redisUtils.increment("new_" + post.getPostType() + "_posts_count");
+        redisUtils.delete(countCacheKey(post.getPostType()));
         return toPostResponse(post);
     }
 
@@ -66,6 +68,7 @@ public class PostService {
             throw new CustomException(PostErrorCode.NOT_EQUAL_USER);
 
         findPost.update(postDto);
+        redisUtils.delete(postCacheKey(postId));
     }
 
     @Transactional
@@ -82,6 +85,8 @@ public class PostService {
 
         redisUtils.zSetSet("deleted:post:ids:" + post.getPostType(), postId);
         postRepository.delete(post);
+        redisUtils.delete(countCacheKey(post.getPostType()));
+        redisUtils.delete(postCacheKey(postId));
     }
 
     public Post findById(Long id) {
@@ -96,17 +101,32 @@ public class PostService {
     @Transactional
     public int countPost(Post.PostType postType) {
 
-        String cacheKey = "posts:" + postType + ":count";
-        Object cached = redisUtils.get(redisUtils.versionedKey(CACHE_VERSION, cacheKey));
+        String cacheKey = countCacheKey(postType);
 
-        if (cached != null) {
-            return Integer.parseInt(cached.toString());
+        try {
+            String cached = redisUtils.stringGet(cacheKey);
+            if (cached != null) {
+                return Integer.parseInt(cached);
+            }
+        } catch (DataAccessException e) {
+            // Redis 장애 시 목록 조회 전체가 실패하지 않도록 DB 직접 조회
+            log.warn("Redis 장애로 게시글 수 DB 직접 조회: {}", e.getMessage());
+            return postStatisticsQueryRepository.countPost(postType);
         }
 
         int count = postStatisticsQueryRepository.countPost(postType);
         redisUtils.stringSet(cacheKey, String.valueOf(count), Duration.ofMinutes(5));
 
         return count;
+    }
+
+    private String countCacheKey(Post.PostType postType) {
+        return redisUtils.versionedKey(CACHE_VERSION, "posts:" + postType + ":count");
+    }
+
+    // PostFacade가 목록 조회 시 캐싱하는 개별 게시글 키
+    private String postCacheKey(Long postId) {
+        return redisUtils.versionedKey(CACHE_VERSION, "post:" + postId);
     }
 
     public List<PostResponse> searchPost(String keyword, int limit, int offset, Post.PostType postType) {

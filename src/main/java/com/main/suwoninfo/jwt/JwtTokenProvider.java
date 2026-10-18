@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -98,7 +99,7 @@ public class JwtTokenProvider implements InitializingBean {
                     .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token);
-            if(redisUtils.hasKeyBlackList(token)) {
+            if(isInBlackList(token)) {
                 log.info("Token In Blacklist");
                 return TokenValidationResult.builder()
                         .valid(false)
@@ -134,6 +135,16 @@ public class JwtTokenProvider implements InitializingBean {
                     .valid(false)
                     .tokenErrorReason(TokenValidationResult.TokenErrorReason.JWT_EMPTY)
                     .build();
+        }
+    }
+
+    // Redis 장애 시 블랙리스트 확인을 건너뜀(fail-open) - 장애 중 전체 요청이 실패하는 것을 막기 위함
+    private boolean isInBlackList(String token) {
+        try {
+            return redisUtils.hasKeyBlackList(token);
+        } catch (DataAccessException e) {
+            log.warn("Redis 장애로 블랙리스트 확인 생략: {}", e.getMessage());
+            return false;
         }
     }
 

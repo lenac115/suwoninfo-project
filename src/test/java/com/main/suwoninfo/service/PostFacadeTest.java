@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -40,12 +39,6 @@ class PostFacadeTest {
     @InjectMocks
     private PostFacade postFacade;
 
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(postFacade, "self", postFacade);
-    }
-
-
     @Nested
     @DisplayName("findPostList - 캐시 히트/미스 분기")
     class FindPostListTest {
@@ -61,7 +54,6 @@ class PostFacadeTest {
             // ID 목록 캐시 존재
             List<String> cachedIds = List.of("100", "99", "98");
             given(redisUtils.listSet(any(), eq(0), eq(-1))).willReturn(cachedIds);
-            given(redisUtils.getTtl(any())).willReturn(60L);
 
             // 개별 게시글 캐시, 전부 존재
             PostResponse post1 = PostResponse.builder()
@@ -106,12 +98,31 @@ class PostFacadeTest {
                             .postId(100L).title("DB에서 온 글").build()
             );
             given(postService.findByPaging(anyInt(), anyInt(), any(), anyInt())).willReturn(dbResult);
-            given(postService.countPost(any())).willReturn(1000);
 
             // When
             List<PostResponse> result = postFacade.findPostList(10, 1, Post.PostType.FREE);
 
             // Then : DB 조회 검증 (호출 됐는지)
+            verify(postService).findByPaging(anyInt(), anyInt(), eq(Post.PostType.FREE), anyInt());
+        }
+
+        @Test
+        @DisplayName("ID 목록은 있지만 개별 게시글 캐시가 하나라도 비면 -> rebuildFind 호출(DB)")
+        void partialPostMiss_triggersRebuild() {
+            // Given : 게시글 99번이 수정되어 개별 캐시가 무효화된 상태
+            given(redisUtils.get("new_FREE_posts_count")).willReturn("0");
+            given(redisUtils.zSetGetCount(anyString(), any(), any())).willReturn(0L);
+            given(redisUtils.stringGet("FREE_page:1")).willReturn("10000");
+            given(redisUtils.listSet(any(), eq(0), eq(-1))).willReturn(List.of("100", "99"));
+
+            PostResponse post1 = PostResponse.builder().postId(100L).title("제목1").build();
+            given(redisUtils.multiGet(anyList())).willReturn(java.util.Arrays.asList(post1, null));
+            given(postService.findByPaging(anyInt(), anyInt(), any(), anyInt())).willReturn(List.of(post1));
+
+            // When
+            postFacade.findPostList(10, 1, Post.PostType.FREE);
+
+            // Then
             verify(postService).findByPaging(anyInt(), anyInt(), eq(Post.PostType.FREE), anyInt());
         }
     }
@@ -166,7 +177,6 @@ class PostFacadeTest {
             given(redisUtils.listSet(any(), eq(0), eq(-1))).willReturn(null);
             given(postService.findByPaging(anyInt(), anyInt(), any(), anyInt()))
                     .willReturn(Collections.emptyList());
-            given(postService.countPost(any())).willReturn(1000);
 
             // When
             postFacade.findPostList(10, 101, Post.PostType.FREE);

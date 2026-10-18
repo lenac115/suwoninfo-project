@@ -7,6 +7,7 @@ import com.main.suwoninfo.domain.Post;
 import com.main.suwoninfo.redis.RedisConnectedEvent;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.event.connection.ConnectionActivatedEvent;
+import io.lettuce.core.event.connection.ReconnectAttemptEvent;
 import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scheduling.annotation.Async;
 
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * redis 관련 설정
@@ -106,10 +108,16 @@ public class RedisConfig {
     public ClientResources clientResources(ApplicationEventPublisher eventPublisher) {
         DefaultClientResources defaultClientResources = DefaultClientResources.create();
 
+        // 재연결 시도(ReconnectAttemptEvent) 이후의 연결 활성화만 진짜 재연결로 판단
+        // ConnectionActivatedEvent는 파이프라인 등 새 연결이 열릴 때마다 발생하므로 단독으로 쓰면 안 됨
+        AtomicBoolean reconnecting = new AtomicBoolean(false);
+
         defaultClientResources.eventBus().get().subscribe(event -> {
                     log.info("Lettuce Event 발생: {}", event.getClass().getSimpleName());
                     try {
-                        if (event instanceof ConnectionActivatedEvent) {
+                        if (event instanceof ReconnectAttemptEvent) {
+                            reconnecting.set(true);
+                        } else if (event instanceof ConnectionActivatedEvent && reconnecting.compareAndSet(true, false)) {
                             eventPublisher.publishEvent(new RedisConnectedEvent(this));
                         }
                     } catch (Exception e) {
