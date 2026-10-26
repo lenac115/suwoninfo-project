@@ -38,6 +38,21 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
+    // =========================================================================
+    // [테스트용] 비밀번호 재설정 — 이메일만 알면 인증 없이 해당 계정 비번을 덮어쓴다.
+    //
+    // ⚠️ 운영 배포 시에는 이 메서드와 SecurityConfig 의 "/users/reset-password" permitAll,
+    //    프론트(views.js)의 재설정 폼을 반드시 주석 처리/삭제할 것.
+    //    (누구나 임의 계정을 탈취할 수 있는 엔드포인트임)
+    //
+    // BCrypt 는 단방향 해시라 기존 비밀번호 복구는 불가능하므로 "찾기"가 아니라 "재설정"이다.
+    // =========================================================================
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody UserRequest form) {
+        userService.resetPasswordForTest(form.email(), form.password());
+        return ResponseEntity.status(HttpStatus.OK).body("비밀번호가 재설정되었습니다. 새 비밀번호로 로그인하세요.");
+    }
+
     //유저 로그인
     @PostMapping("/login")
     public ResponseEntity<?> logIn(@RequestBody UserRequest receivedLoginForm) {

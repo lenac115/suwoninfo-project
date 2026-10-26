@@ -12,6 +12,8 @@ const routes = [
     [/^\/signup$/, Views.signup],
     [/^\/mypage$/, Views.mypage],
     [/^\/todo$/, Views.todo],
+    [/^\/chat$/, Views.chatList],
+    [/^\/chat\/(?<roomId>\d+)$/, Views.chatRoom],
 ];
 
 const App = {
@@ -20,6 +22,7 @@ const App = {
         const [path, qs] = hash.split('?');
         const query = new URLSearchParams(qs || '');
         const root = document.getElementById('app');
+        Chat.leaveRoom(); // 채팅방 화면을 벗어나면 구독 해제 (연결은 유지)
 
         document.querySelectorAll('[data-nav]').forEach(a => {
             a.classList.toggle('active', path.includes('/' + a.dataset.nav));
@@ -53,6 +56,7 @@ const App = {
 
     async logout() {
         try { await Api.logout(); } catch { /* 토큰이 이미 만료된 경우에도 로컬 상태는 정리 */ }
+        Chat.disconnect();
         Auth.clear();
         window.dispatchEvent(new Event('auth-changed'));
         toast('로그아웃되었습니다.');

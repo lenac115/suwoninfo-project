@@ -13,5 +13,6 @@ public record PostResponse(
         Integer price,
         Post.PostType postType,
         Post.TradeStatus tradeStatus,
-        List<PhotoResponse> photos
+        List<PhotoResponse> photos,
+        Long writerId
 ) {}

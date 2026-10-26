@@ -136,6 +136,8 @@ const Views = {
         }
 
         const isTrade = post.postType === 'TRADE';
+        const me = Auth.me;
+        const canChat = Auth.isLoggedIn() && post.writerId && me && me.id !== post.writerId;
         root.innerHTML = `
             <a class="back" href="#/board/${post.postType}">← ${BOARD_NAME[post.postType] || '목록'}</a>
             <article class="card post">
@@ -150,6 +152,7 @@ const Views = {
                 <div class="photos" id="photos"></div>
                 ${Auth.isLoggedIn() ? `
                 <div class="actions">
+                    ${canChat ? `<button class="btn primary" id="chat-writer">💬 ${isTrade ? '판매자와 채팅' : '작성자와 채팅'}</button>` : ''}
                     <a class="btn" href="#/edit/${post.postId}">수정</a>
                     <button class="btn danger" id="del-post">삭제</button>
                 </div>` : ''}
@@ -170,6 +173,9 @@ const Views = {
                 .then(url => { fig.innerHTML = `<img src="${url}" alt="${esc(ph.origFileName)}">`; })
                 .catch(() => { fig.innerHTML = `<div class="ph-loading">이미지 로드 실패</div>`; });
         }
+
+        const chatBtn = root.querySelector('#chat-writer');
+        if (chatBtn) chatBtn.addEventListener('click', () => Views.openChat(post.writerId));
 
         const del = root.querySelector('#del-post');
         if (del) del.addEventListener('click', async () => {
@@ -209,6 +215,7 @@ const Views = {
                     <strong>${esc(c.user ? c.user.nickname : '알 수 없음')}</strong>
                     <span class="comment-tools">
                         <button class="link" data-act="reply">답글</button>
+                        ${!mine && c.user ? `<button class="link" data-act="chat" data-user="${c.user.id}">채팅</button>` : ''}
                         ${mine ? `<button class="link" data-act="edit">수정</button>
                                   <button class="link danger" data-act="delete">삭제</button>` : ''}
                     </span>
@@ -245,6 +252,10 @@ const Views = {
             const slot = el.querySelector('.comment-slot');
             const act = btn.dataset.act;
 
+            if (act === 'chat') {
+                Views.openChat(Number(btn.dataset.user));
+                return;
+            }
             if (act === 'delete') {
                 if (!confirm('댓글을 삭제할까요?')) return;
                 try { await Api.deleteComment(id); reload(); } catch (e) { toast(e.message, true); }
@@ -374,8 +385,45 @@ const Views = {
                 <label>이메일<input name="email" type="email" required autocomplete="username"></label>
                 <label>비밀번호<input name="password" type="password" required autocomplete="current-password"></label>
                 <button class="btn primary block">로그인</button>
-                <p class="muted center">계정이 없나요? <a href="#/signup">회원가입</a></p>
+                <p class="muted center">계정이 없나요? <a href="#/signup">회원가입</a>
+                    <span aria-hidden="true"> · </span>
+                    <a href="#" id="toggle-reset">비밀번호 재설정(테스트)</a></p>
+            </form>
+            <form class="card form narrow" id="reset-form" hidden>
+                <h2>테스트용 비밀번호 재설정</h2>
+                <p class="muted">입력한 이메일 계정의 비밀번호를 새 값으로 덮어씁니다.
+                    (BCrypt 해시라 기존 비밀번호를 복구하는 것은 불가능합니다.)</p>
+                <label>이메일<input name="email" type="email" required autocomplete="username"></label>
+                <label>새 비밀번호<input name="password" type="password" required minlength="4" autocomplete="new-password"></label>
+                <button class="btn block">재설정</button>
             </form>`;
+
+        // 테스트용 재설정 폼 토글 (로그인 창에 입력한 이메일을 그대로 채워준다)
+        const resetForm = root.querySelector('#reset-form');
+        root.querySelector('#toggle-reset').addEventListener('click', (ev) => {
+            ev.preventDefault();
+            resetForm.hidden = !resetForm.hidden;
+            if (!resetForm.hidden) resetForm.email.value = root.querySelector('#login').email.value;
+        });
+        resetForm.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const f = ev.target;
+            try {
+                await Api.resetTestPassword(f.email.value.trim(), f.password.value);
+            } catch (e) {
+                toast(e.code === 'NOT_EXIST_EMAIL' ? '존재하지 않는 이메일입니다.'
+                    : e.code === 'INVALID_TEST_PASSWORD' ? '새 비밀번호는 4자 이상이어야 합니다.'
+                    : e.message, true);
+                return;
+            }
+            // 재설정에 쓴 값을 로그인 폼에 그대로 채워 바로 로그인할 수 있게 한다
+            const loginForm = root.querySelector('#login');
+            loginForm.email.value = f.email.value.trim();
+            loginForm.password.value = f.password.value;
+            resetForm.hidden = true;
+            toast('비밀번호가 재설정되었습니다. 로그인 버튼을 눌러주세요.');
+        });
+
         root.querySelector('#login').addEventListener('submit', async (ev) => {
             ev.preventDefault();
             const f = ev.target;
@@ -631,6 +679,160 @@ const Views = {
                     : '저장 실패: ' + e.message);
             }
         });
+    },
+
+    // ===================== 채팅 목록 =====================
+    async chatList(root) {
+        if (!requireLogin(root)) return;
+        root.innerHTML = '<div class="muted pad">불러오는 중…</div>';
+        let rooms;
+        try {
+            rooms = await Api.chatRooms();
+        } catch (e) {
+            root.innerHTML = errorBox(e);
+            return;
+        }
+        root.innerHTML = `
+            <div class="page-head"><h1>채팅</h1></div>
+            <div class="card list">
+                ${rooms.length ? rooms.map(r => `
+                    <a class="row" href="#/chat/${r.roomId}">
+                        <span class="chat-avatar">${esc((r.opponentNickname || '?').slice(0, 1))}</span>
+                        <span class="row-title">${esc(r.opponentNickname || '알 수 없음')}</span>
+                        <span class="muted">→</span>
+                    </a>`).join('')
+                : '<div class="empty">아직 채팅방이 없습니다.<br>게시글이나 댓글에서 <b>채팅하기</b>를 눌러 대화를 시작하세요.</div>'}
+            </div>`;
+    },
+
+    // ===================== 채팅방 =====================
+    async chatRoom(root, { roomId }) {
+        if (!requireLogin(root)) return;
+        roomId = Number(roomId);
+        root.innerHTML = '<div class="muted pad">불러오는 중…</div>';
+
+        let me = Auth.me, room, history;
+        try {
+            if (!me) me = Auth.me = await Api.info();
+            [room, history] = await Promise.all([
+                Api.chatRooms().then(list => list.find(r => r.roomId === roomId)),
+                Api.chatMessages(roomId),
+            ]);
+        } catch (e) {
+            root.innerHTML = errorBox(e);
+            return;
+        }
+        if (!room) {
+            root.innerHTML = `<div class="card center"><p>채팅방을 찾을 수 없습니다.</p><a class="btn" href="#/chat">채팅 목록</a></div>`;
+            return;
+        }
+
+        root.innerHTML = `
+            <a class="back" href="#/chat">← 채팅 목록</a>
+            <section class="card chat">
+                <div class="chat-head">
+                    <span class="chat-avatar">${esc((room.opponentNickname || '?').slice(0, 1))}</span>
+                    <strong>${esc(room.opponentNickname || '알 수 없음')}</strong>
+                    <span class="chat-status muted" id="chat-status">연결 중…</span>
+                </div>
+                <div class="chat-log" id="chat-log">
+                    <div class="center" id="chat-more-wrap"><button class="btn small ghost" id="chat-more">이전 메시지 더보기</button></div>
+                </div>
+                <form class="chat-form" id="chat-form">
+                    <input name="content" maxlength="1000" autocomplete="off" placeholder="메시지를 입력하세요" disabled>
+                    <button class="btn primary" disabled>전송</button>
+                </form>
+            </section>`;
+
+        const log = root.querySelector('#chat-log');
+        const moreWrap = root.querySelector('#chat-more-wrap');
+        const form = root.querySelector('#chat-form');
+        const status = root.querySelector('#chat-status');
+        const seen = new Set();
+        let oldestId = null;
+
+        const time = (iso) => {
+            const d = new Date(iso);
+            return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        const bubble = (m) => {
+            const mine = m.senderId === me.id;
+            const el = document.createElement('div');
+            el.className = 'chat-msg' + (mine ? ' mine' : '');
+            el.innerHTML = `<div class="chat-bubble">${esc(m.content)}</div><span class="chat-time">${time(m.sentAt)}</span>`;
+            return el;
+        };
+        const nearBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+        const toBottom = () => { log.scrollTop = log.scrollHeight; };
+
+        // 내역은 최신순으로 오므로 뒤집어서 위에서부터 쌓는다
+        const prepend = (list) => {
+            const prevHeight = log.scrollHeight;
+            const frag = document.createDocumentFragment();
+            for (const m of [...list].reverse()) {
+                if (seen.has(m.messageId)) continue;
+                seen.add(m.messageId);
+                frag.appendChild(bubble(m));
+            }
+            moreWrap.after(frag);
+            if (list.length) oldestId = list[list.length - 1].messageId;
+            moreWrap.hidden = list.length < 30;
+            log.scrollTop += log.scrollHeight - prevHeight; // 보던 위치 유지
+        };
+        const append = (m) => {
+            if (seen.has(m.messageId)) return; // 내역 로딩과 실시간 수신이 겹친 경우
+            seen.add(m.messageId);
+            const stick = nearBottom() || m.senderId === me.id;
+            log.appendChild(bubble(m));
+            if (stick) toBottom();
+        };
+
+        prepend(history);
+        if (!history.length) log.insertAdjacentHTML('beforeend', '<div class="empty" id="chat-empty">첫 메시지를 보내보세요.</div>');
+        toBottom();
+
+        root.querySelector('#chat-more').addEventListener('click', async (ev) => {
+            ev.target.disabled = true;
+            try { prepend(await Api.chatMessages(roomId, oldestId)); }
+            catch (e) { toast(e.message, true); }
+            finally { ev.target.disabled = false; }
+        });
+
+        try {
+            await Chat.enterRoom(roomId, (m) => {
+                root.querySelector('#chat-empty')?.remove();
+                append(m);
+            }, (err) => toast(err.message, true));
+        } catch (e) {
+            status.textContent = '연결 실패';
+            toast(e.message, true);
+            return;
+        }
+        // 연결을 기다리는 사이 다른 화면으로 이동했으면 구독만 해두지 않도록 정리
+        if (!document.body.contains(form)) { Chat.leaveRoom(); return; }
+
+        status.textContent = '';
+        form.content.disabled = false;
+        form.querySelector('button').disabled = false;
+        form.content.focus();
+
+        form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const content = form.content.value.trim();
+            if (!content) return;
+            try {
+                Chat.send(roomId, content);
+                form.content.value = '';
+            } catch (e) { toast(e.message, true); }
+        });
+    },
+
+    /** 상대방과의 1:1 채팅방을 열고(없으면 생성) 이동 */
+    async openChat(targetUserId) {
+        try {
+            const room = await Api.openChatRoom(targetUserId);
+            location.hash = `#/chat/${room.roomId}`;
+        } catch (e) { toast(e.message, true); }
     },
 
     async notFound(root) {

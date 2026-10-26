@@ -18,6 +18,8 @@ public class ToUtils {
                 .photos(p.getPhoto() == null ? Collections.emptyList() : p.getPhoto().stream()
                         .map(ToUtils::toPhotoResponse)
                         .toList())
+                // 프록시의 id만 꺼내므로 작성자 조회 쿼리가 추가로 나가지 않는다
+                .writerId(p.getUsers() == null ? null : p.getUsers().getId())
                 .build();
     }
 

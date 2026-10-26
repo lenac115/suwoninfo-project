@@ -100,6 +100,27 @@ public class UserService {
         return toUserResponse(findUser);
     }
 
+    /**
+     * [테스트/개발 전용] 이메일로 계정을 찾아 비밀번호를 새 값으로 덮어쓴다.
+     *
+     * BCrypt는 단방향 해시라 기존 비밀번호를 복구할 수 없으므로, "찾기"가 아니라 "재설정"으로만 구현된다.
+     * 이메일만 알면 인증 없이 비번을 바꿀 수 있는 위험한 동작이므로, 운영 배포 시에는
+     * 호출부(UserController.resetPassword)와 SecurityConfig permitAll 을 주석 처리할 것.
+     */
+    @Transactional
+    public void resetPasswordForTest(String email, String newPassword) {
+        if (!StringUtils.hasText(newPassword) || newPassword.length() < 4) {
+            throw new CustomException(UserErrorCode.INVALID_TEST_PASSWORD);
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(UserErrorCode.NOT_EXIST_EMAIL));
+
+        user.changePassword(passwordEncoder.encode(newPassword));
+        // 재설정 후 예전 세션으로 재발급되지 않도록 남아있는 리프레시 토큰을 제거한다.
+        redisUtils.delete("RT:" + email);
+    }
+
     //로그인 메소드
     @Transactional
     public TokenResponse logIn(String email, String password) {

@@ -44,6 +44,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/users/new").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/reissue").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/reset-password").permitAll() // [테스트용] 운영 배포 시 이 줄 주석 처리
+
                         .requestMatchers(HttpMethod.GET, "/post/view/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/list").permitAll()
                         .requestMatchers(HttpMethod.GET, "/post/list/test").permitAll()
@@ -52,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/post/new").permitAll()
                         .requestMatchers(HttpMethod.POST, "/post/new").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+                        .requestMatchers("/ws-stomp/**").permitAll() // WebSocket 핸드셰이크. 인증은 STOMP CONNECT 프레임에서 처리
+                        .requestMatchers(HttpMethod.GET, "/chat-test.html").permitAll() // 채팅 테스트 페이지
                         .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/img/**", "/favicon.ico", "/error").permitAll() //정적파일
                         .anyRequest().authenticated() // 인증 되지 않는 사용자일 경우 모든 요청을 Spring Security 에서 가로챔(설정한 url을 제외한 url은 이 설정을 적용할 예정)
                 )

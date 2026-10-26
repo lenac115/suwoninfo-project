@@ -101,6 +101,9 @@ const Api = {
     updateUser: (form) => request('/users/update', { method: 'POST', json: form }),
     logout: () => request('/users/logout', { method: 'DELETE' }),
     deleteUser: () => request('/users/delete', { method: 'DELETE' }),
+    // [테스트용] 이메일 계정의 비밀번호를 새 값으로 재설정
+    resetTestPassword: (email, password) =>
+        request('/users/reset-password', { method: 'POST', json: { email, password } }),
 
     // ===== Post =====
     postList: (type, page) => request(`/post/list?type=${type}&page=${page}`),
@@ -146,4 +149,11 @@ const Api = {
     createTodo: (todo) => request('/todo/new', { method: 'POST', json: todo }),
     updateTodo: (todo) => request('/todo/update', { method: 'POST', json: todo }),
     deleteTodo: (id) => request(`/todo/delete/${id}`, { method: 'DELETE' }),
+
+    // ===== Chat =====
+    chatRooms: async () => (await request('/chat/rooms')) || [],
+    openChatRoom: (targetUserId) => request('/chat/rooms', { method: 'POST', json: { targetUserId } }),
+    /** 최신순. cursor(=가장 오래된 messageId)를 주면 그보다 이전 메시지 */
+    chatMessages: async (roomId, cursor) =>
+        (await request(`/chat/rooms/${roomId}/messages${cursor ? `?cursor=${cursor}` : ''}`)) || [],
 };

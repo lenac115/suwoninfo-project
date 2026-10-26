@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Test</title>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; }
+  fieldset { margin-bottom: 12px; }
+  input { padding: 4px 6px; }
+  #log { height: 360px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; background: #fafafa; font-size: 14px; }
+  .sys { color: #888; } .err { color: #c00; } .me { color: #0a5; }
+</style>
+</head>
+<body>
+<h2>SuwonInfo 채팅 테스트 <small id="server"></small></h2>
+
+<fieldset>
+  <legend>1. 로그인 토큰</legend>
+  <input id="token" size="60" placeholder="/users/login 응답의 accessToken">
+</fieldset>
+
+<fieldset>
+  <legend>2. 채팅방</legend>
+  상대 userId <input id="target" size="6"> <button onclick="createRoom()">방 만들기/찾기</button>
+  &nbsp; roomId <input id="roomId" size="6">
+</fieldset>
+
+<fieldset>
+  <legend>3. 연결</legend>
+  <button onclick="connect()">CONNECT + SUBSCRIBE</button>
+  <button onclick="disconnect()">DISCONNECT</button>
+  <span id="status">끊김</span>
+</fieldset>
+
+<div id="log"></div>
+<p>
+  <input id="msg" size="50" placeholder="메시지" onkeydown="if(event.key==='Enter') send()">
+  <button onclick="send()">SEND</button>
+</p>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('server').textContent = '(' + location.host + ')';
+  let client = null;
+
+  function log(text, cls) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    if (cls) div.className = cls;
+    $('log').appendChild(div);
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+
+  function authHeader() {
+    return { 'Authorization': 'Bearer ' + $('token').value.trim(), 'Content-Type': 'application/json' };
+  }
+
+  async function createRoom() {
+    const res = await fetch('/chat/rooms', {
+      method: 'POST', headers: authHeader(),
+      body: JSON.stringify({ targetUserId: Number($('target').value) })
+    });
+    const body = await res.json();
+    if (!res.ok) return log('방 생성 실패: ' + JSON.stringify(body), 'err');
+    $('roomId').value = body.roomId;
+    log('채팅방 #' + body.roomId + ' (상대: ' + body.opponentNickname + ')', 'sys');
+  }
+
+  async function loadHistory(roomId) {
+    const res = await fetch('/chat/rooms/' + roomId + '/messages?size=30', { headers: authHeader() });
+    if (!res.ok) return log('내역 조회 실패: ' + res.status, 'err');
+    const list = await res.json();
+    list.reverse().forEach(render);
+    log('── 이전 메시지 ' + list.length + '건 ──', 'sys');
+  }
+
+  function render(m) {
+    log('[' + (m.sentAt || '').substring(11, 19) + '] ' + m.senderNickname + ': ' + m.content);
+  }
+
+  function connect() {
+    const roomId = $('roomId').value.trim();
+    if (!roomId) return log('roomId를 먼저 입력하세요', 'err');
+    disconnect();
+
+    const scheme = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    client = new StompJs.Client({
+      brokerURL: scheme + location.host + '/ws-stomp',
+      connectHeaders: { 'Authorization': 'Bearer ' + $('token').value.trim() },
+      reconnectDelay: 0,
+      onConnect: async () => {
+        $('status').textContent = '연결됨 (room ' + roomId + ')';
+        await loadHistory(roomId);
+        client.subscribe('/sub/chat/room/' + roomId, (frame) => render(JSON.parse(frame.body)));
+        client.subscribe('/user/queue/errors', (frame) => log('에러: ' + frame.body, 'err'));
+      },
+      onStompError: (frame) => {
+        log('STOMP ERROR: ' + (frame.headers.message || frame.body), 'err');
+        $('status').textContent = '끊김';
+      },
+      onWebSocketClose: () => { $('status').textContent = '끊김'; }
+    });
+    client.activate();
+  }
+
+  function disconnect() {
+    if (client) client.deactivate();
+    client = null;
+  }
+
+  function send() {
+    if (!client || !client.connected) return log('먼저 연결하세요', 'err');
+    const content = $('msg').value;
+    client.publish({
+      destination: '/pub/chat/message',
+      body: JSON.stringify({ roomId: Number($('roomId').value), content })
+    });
+    $('msg').value = '';
+  }
+</script>
+</body>
+</html>
